@@ -1,32 +1,25 @@
 /**
- * Server-side access to the UniTrack API, with refresh handled once per call.
+ * Server-side access to the UniTrack API.
  *
- * Every read here runs on the server: the access token comes out of an
- * httpOnly cookie, is attached as a bearer header, and never reaches the
- * browser.
+ * Every call runs on the server: the access token comes out of an httpOnly
+ * cookie, goes out as a bearer header, and never reaches the browser.
  *
- * On a 401 this refreshes once and retries. Exactly once — if the freshly
- * minted token is also rejected, the problem is not staleness and retrying
- * again would just loop.
+ * Refreshing does **not** happen here. Two reasons, both load-bearing:
  *
- * Refresh tokens rotate: the backend consumes the token it is given and
- * returns a new pair, so the replacement **must** be persisted or the next
- * refresh presents a dead token. Concurrent refreshes are safe because the
- * backend keeps a short grace window and hands every caller in it the same
- * pair, rather than treating the second one as a replay.
+ * 1. Next.js forbids writing cookies during a Server Component render, so a
+ *    refresh triggered mid-render could not persist the new pair anyway.
+ * 2. `middleware.ts` runs before the render and can set cookies on the
+ *    response, which is the only place the token swap can actually stick.
+ *
+ * So by the time a page runs, the token is either fresh or the session is
+ * genuinely over. A 401 here means the latter, and the caller redirects.
  */
 
 import "server-only";
 
-import { ApiError, createApiClient } from "@unitrack/api-client";
+import { createApiClient } from "@unitrack/api-client";
 
-import {
-  clearSession,
-  readAccessToken,
-  readRefreshToken,
-  saveSession,
-  type TokenPair,
-} from "./session";
+import { readAccessToken } from "./session";
 
 export const API_BASE_URL = process.env.UNITRACK_API_URL ?? "http://localhost:8000";
 
@@ -37,52 +30,52 @@ export class SessionExpiredError extends Error {
   }
 }
 
-type Client = ReturnType<typeof createApiClient>;
-
-async function refreshSession(): Promise<string> {
-  const refreshToken = await readRefreshToken();
-  if (!refreshToken) throw new SessionExpiredError();
-
-  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    // Expired, revoked, replayed, or the account was suspended. None of these
-    // recover by trying again, so drop the cookies and send the user to login.
-    await clearSession();
-    throw new SessionExpiredError();
+/** Any non-2xx that is not an expired session. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly detail: unknown,
+  ) {
+    super(`UniTrack API responded ${status}`);
+    this.name = "ApiError";
   }
 
-  const pair = (await response.json()) as TokenPair;
-  await saveSession(pair);
-  return pair.access_token;
+  /** Authenticated but not permitted. Distinct from 401 on purpose — the
+   * backend separates them, and refreshing a token would not help. */
+  get isForbidden(): boolean {
+    return this.status === 403;
+  }
+}
+
+type Client = ReturnType<typeof createApiClient>;
+
+interface FetchResult<T> {
+  data?: T;
+  error?: unknown;
+  response: Response;
 }
 
 /**
- * Run `call` with an authenticated client, refreshing once on a 401.
+ * Run an API call and return its payload, throwing on failure.
  *
- * Usage keeps the retry invisible to callers:
+ * openapi-fetch reports failures on `result.error` rather than throwing, which
+ * is easy to forget at a call site — miss it and a 403 renders as an empty
+ * table instead of an error. Funnelling every call through here makes that
+ * impossible.
  *
- *     const helpers = await withApi((api) =>
- *       api.GET("/admin/helpers", { params: { query: { helper_status: "pending" } } }),
- *     );
+ *     const helpers = await apiCall((api) => api.GET("/admin/helpers", {}));
+ *
+ * Endpoints returning 204 have no body; `T` is `undefined` for those and the
+ * `response.ok` check keeps them from being mistaken for failures.
  */
-export async function withApi<T>(
-  call: (client: Client) => Promise<T>,
+export async function apiCall<T>(
+  call: (client: Client) => Promise<FetchResult<T>>,
 ): Promise<T> {
   const accessToken = await readAccessToken();
+  const result = await call(createApiClient({ baseUrl: API_BASE_URL, accessToken }));
 
-  try {
-    return await call(createApiClient({ baseUrl: API_BASE_URL, accessToken }));
-  } catch (error) {
-    if (!(error instanceof ApiError) || !error.isUnauthorized) throw error;
-    // A 403 deliberately does not come through here: the token is fine, the
-    // role is wrong, and refreshing would change nothing.
-    const fresh = await refreshSession();
-    return call(createApiClient({ baseUrl: API_BASE_URL, accessToken: fresh }));
-  }
+  if (result.response.status === 401) throw new SessionExpiredError();
+  if (!result.response.ok) throw new ApiError(result.response.status, result.error);
+
+  return result.data as T;
 }

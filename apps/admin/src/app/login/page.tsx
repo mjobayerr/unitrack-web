@@ -10,22 +10,27 @@ export default function LoginPage() {
   const [state, action, pending] = useActionState(login, INITIAL);
 
   return (
-    <main>
+    <div className="login-page">
       <form className="login" action={action}>
         <h1>UniTrack Admin</h1>
-        <p className="sub">Sign in with an administrator account.</p>
+        <p className="sub">Fleet operations console</p>
 
+        <label htmlFor="email">Email</label>
         <input
+          id="email"
           name="email"
           type="email"
           placeholder="admin@ulab.edu.bd"
           autoComplete="username"
           required
         />
+
+        <label htmlFor="password">Password</label>
         <input
+          id="password"
           name="password"
           type="password"
-          placeholder="Password"
+          placeholder="••••••••"
           autoComplete="current-password"
           required
         />
@@ -36,6 +41,6 @@ export default function LoginPage() {
           {pending ? "Signing in…" : "Sign in"}
         </button>
       </form>
-    </main>
+    </div>
   );
 }
