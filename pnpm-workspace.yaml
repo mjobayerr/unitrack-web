@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+allowBuilds:
+  # Next.js's image optimiser. Its install script compiles native binaries, so
+  # without this it installs but cannot optimise images at runtime.
+  sharp: true

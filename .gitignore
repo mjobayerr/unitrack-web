@@ -1,31 +1,17 @@
-# Dependencies
 node_modules/
-.pnp
-.pnp.js
-
-# Next.js / build
 .next/
 out/
-build/
 dist/
-
-# Env / secrets
-.env
-.env.*
-!.env.example
-
-# Generated API types
-**/api/generated/
-
-# Testing / cache
-coverage/
 .turbo/
 
-# OS / editor / logs
+# Local env files; .env.example is committed.
+.env
+.env.local
+.env.*.local
+
 .DS_Store
-.idea/
-.vscode/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+
+# TypeScript build artefacts (Next.js regenerates both).
+*.tsbuildinfo
+next-env.d.ts
