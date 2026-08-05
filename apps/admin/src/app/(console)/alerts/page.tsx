@@ -98,11 +98,11 @@ export default async function AlertsPage() {
               <table>
                 <thead>
                   <tr>
-                    <th>Alert</th>
-                    <th>Severity</th>
-                    <th>Status</th>
-                    <th>Raised</th>
-                    <th className="actions">Action</th>
+                    <th scope="col">Alert</th>
+                    <th scope="col">Severity</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Raised</th>
+                    <th scope="col" className="actions">Action</th>
                   </tr>
                 </thead>
                 <tbody>

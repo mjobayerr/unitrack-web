@@ -69,6 +69,7 @@ export function AlertRow({ alert }: { alert: Alert }) {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="What was done?"
+              aria-label={`Resolution note for ${label(alert.type)}`}
               maxLength={500}
               autoFocus
             />

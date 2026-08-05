@@ -78,11 +78,11 @@ export default async function HelpersPage() {
               <table>
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Phone</th>
-                    <th>Helper</th>
-                    <th>Account</th>
-                    <th className="actions">Action</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Phone</th>
+                    <th scope="col">Helper</th>
+                    <th scope="col">Account</th>
+                    <th scope="col" className="actions">Action</th>
                   </tr>
                 </thead>
                 <tbody>
