@@ -610,6 +610,239 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/shop/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Products
+         * @description What is for sale. Readable by any signed-in account so the helper app can
+         *     show a student what they should have bought.
+         */
+        get: operations["list_products_shop_products_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shop/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Orders */
+        get: operations["list_orders_shop_orders_get"];
+        put?: never;
+        /**
+         * Create Order
+         * @description Start a purchase and return the gateway URL to send the student to.
+         *
+         *     Idempotent on `idempotency_key`: a retried or double-tapped request returns
+         *     the original order rather than charging twice. The uniqueness is enforced by
+         *     the database, because a check-then-insert loses the race that makes this
+         *     necessary in the first place.
+         */
+        post: operations["create_order_shop_orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shop/payments/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Payment Return Get
+         * @description Some gateway configurations redirect with a GET and query parameters.
+         */
+        get: operations["payment_return_get"];
+        put?: never;
+        /**
+         * Payment Return Post
+         * @description The normal case: SSLCommerz returns the student with a form POST.
+         */
+        post: operations["payment_return_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shop/payments/ipn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Payment Ipn
+         * @description SSLCommerz reporting the outcome server to server.
+         *
+         *     This exists because the browser return cannot be relied on: a student who
+         *     closes the tab, loses signal, or is redirected through a flaky network
+         *     never reaches it, and their money is gone with no ticket to show for it.
+         *     The IPN arrives regardless, which makes it the authoritative path and the
+         *     return merely the fast one.
+         *
+         *     Answers 200 for outcomes SSLCommerz should stop retrying — including
+         *     failures, which are settled facts. A 5xx is reserved for "ask again later",
+         *     because that is what a retry can actually fix.
+         */
+        post: operations["payment_ipn_shop_payments_ipn_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shop/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Tickets
+         * @description The student's wallet. Scoped to the caller — never takes an id from the
+         *     request, so one student cannot read another's tickets.
+         */
+        get: operations["list_tickets_shop_tickets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shop/tickets/{ticket_id}/qr-material": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Qr Material
+         * @description Hand a student's device what it needs to generate boarding codes offline.
+         *
+         *     Scoped to the caller's own ticket — the id in the path is checked against
+         *     the caller's student row, never trusted on its own. Without that, any
+         *     student could ask for any ticket's private key by guessing a uuid, which
+         *     would hand them the whole system.
+         */
+        get: operations["qr_material_shop_tickets__ticket_id__qr_material_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shop/tickets/{ticket_id}/qr.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Qr Image
+         * @description Render the current boarding code as a PNG.
+         *
+         *     The offline path signs on the student's own device (see `qr-material`);
+         *     this is the online convenience, and the only way to put a real rotating
+         *     code in front of a scanner before the student app exists.
+         *
+         *     Signed here rather than handed over as data because the browser showing it
+         *     has connectivity by definition — if it did not, it could not have asked.
+         *
+         *     Cached nowhere. The code is only valid for its 30-second slice, so a cached
+         *     image is a rejected passenger; `no-store` also keeps it out of any proxy
+         *     between here and the phone.
+         */
+        get: operations["qr_image_shop_tickets__ticket_id__qr_png_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/helper/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ticket Manifest
+         * @description The offline ticket manifest (spec §7.5).
+         *
+         *     Synced at trip start on whatever signal is available. It carries public
+         *     keys only, plus enough identity for the dead-phone fallback: a student
+         *     whose battery died gives their student ID and the helper finds them here.
+         *
+         *     Only active tickets are listed, which is also how revocation reaches an
+         *     offline helper — a revoked ticket simply stops appearing, and the staleness
+         *     window is the time since their last sync.
+         */
+        get: operations["ticket_manifest_helper_manifest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/helper/redemptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync Redemptions
+         * @description Record boardings a helper's device accepted, online or hours ago.
+         *
+         *     Every item is answered individually. One forged code in a batch of forty
+         *     must not cost the other thirty-nine — a helper who loses a route's worth of
+         *     genuine boardings because a single scan was bad has lost real revenue.
+         *
+         *     Each result is committed on its own for the same reason: a later item
+         *     failing must not roll back earlier valid ones.
+         */
+        post: operations["sync_redemptions_helper_redemptions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -736,6 +969,26 @@ export interface components {
          * @enum {string}
          */
         BusStatus: "active" | "inactive" | "maintenance";
+        /**
+         * CheckoutOut
+         * @description Where to send the student to pay.
+         */
+        CheckoutOut: {
+            /**
+             * Order Id
+             * Format: uuid
+             */
+            order_id: string;
+            /** Tran Id */
+            tran_id: string;
+            /** Amount Paisa */
+            amount_paisa: number;
+            /** Currency */
+            currency: string;
+            status: components["schemas"]["OrderStatus"];
+            /** Checkout Url */
+            checkout_url: string;
+        };
         /** GpsAccepted */
         GpsAccepted: {
             /** Accepted */
@@ -849,6 +1102,202 @@ export interface components {
         LogoutRequest: {
             /** Refresh Token */
             refresh_token?: string | null;
+        };
+        /**
+         * ManifestTicketOut
+         * @description One row of the helper's offline ticket manifest (spec §7.5).
+         *
+         *     Carries the **public** key only. A lost or stolen helper phone therefore
+         *     leaks nothing that can forge a boarding code — it can verify codes, not
+         *     create them.
+         *
+         *     `rides_remaining` is a snapshot for display and for the dead-phone manual
+         *     fallback. The server value is authoritative; this one is as fresh as the
+         *     helper's last sync.
+         */
+        ManifestTicketOut: {
+            /**
+             * Ticket Id
+             * Format: uuid
+             */
+            ticket_id: string;
+            /** Qr Public Key */
+            qr_public_key: string;
+            /** Student Name */
+            student_name: string;
+            /** Student Id No */
+            student_id_no: string;
+            /** Rides Remaining */
+            rides_remaining: number | null;
+            /**
+             * Valid To
+             * Format: date-time
+             */
+            valid_to: string;
+            status: components["schemas"]["TicketStatus"];
+        };
+        /** OrderCreate */
+        OrderCreate: {
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Idempotency Key */
+            idempotency_key: string;
+        };
+        /** OrderOut */
+        OrderOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Amount Paisa */
+            amount_paisa: number;
+            /** Currency */
+            currency: string;
+            status: components["schemas"]["OrderStatus"];
+            /** Tran Id */
+            tran_id: string;
+            /** Paid At */
+            paid_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * OrderStatus
+         * @description `initiated` means we created it; `pending` means the gateway has it.
+         * @enum {string}
+         */
+        OrderStatus: "initiated" | "pending" | "paid" | "failed" | "cancelled" | "refunded";
+        /** ProductOut */
+        ProductOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            type: components["schemas"]["ProductType"];
+            /** Name */
+            name: string;
+            /** Price Paisa */
+            price_paisa: number;
+            /** Ride Count */
+            ride_count: number | null;
+            /** Validity Days */
+            validity_days: number;
+            /** Route Scope */
+            route_scope: string | null;
+        };
+        /**
+         * ProductType
+         * @enum {string}
+         */
+        ProductType: "single" | "bulk" | "package";
+        /**
+         * QrMaterialOut
+         * @description Everything a student's device needs to render boarding codes offline.
+         *
+         *     The private key leaves the server exactly once per sync, over an
+         *     authenticated request, to the account that owns the ticket. That is the
+         *     accepted trade in spec §7.5: a code that works with no signal has to be
+         *     generated on the device, and generating it requires the key.
+         *
+         *     `server_time` is the clock-offset anchor. A phone whose clock is wrong
+         *     would otherwise sign codes in the wrong time slice and be rejected at the
+         *     door with nothing to explain why.
+         */
+        QrMaterialOut: {
+            /**
+             * Ticket Id
+             * Format: uuid
+             */
+            ticket_id: string;
+            /** Qr Private Key */
+            qr_private_key: string;
+            /** Slice Seconds */
+            slice_seconds: number;
+            /**
+             * Server Time
+             * Format: date-time
+             */
+            server_time: string;
+            /** Passenger Count */
+            passenger_count: number;
+            /**
+             * Valid To
+             * Format: date-time
+             */
+            valid_to: string;
+        };
+        /** RedemptionBatchIn */
+        RedemptionBatchIn: {
+            /** Redemptions */
+            redemptions: components["schemas"]["RedemptionIn"][];
+        };
+        /** RedemptionBatchOut */
+        RedemptionBatchOut: {
+            /** Results */
+            results: components["schemas"]["RedemptionResultOut"][];
+        };
+        /**
+         * RedemptionFlag
+         * @description How much a recorded boarding should be trusted.
+         *
+         *     `ok` is the ordinary case. `duplicate_suspect` is what offline validation
+         *     inevitably produces: two helper devices, neither able to see the other's
+         *     nonce log, both accept the same QR. Cryptography cannot prevent that — only
+         *     detection after the fact can, which is why the flag exists rather than a
+         *     hard rejection that would break offline boarding entirely.
+         * @enum {string}
+         */
+        RedemptionFlag: "ok" | "duplicate_suspect" | "invalid";
+        /**
+         * RedemptionIn
+         * @description One boarding a helper's device recorded, online or hours earlier.
+         */
+        RedemptionIn: {
+            /** Code */
+            code: string;
+            /** Device Id */
+            device_id: string;
+            /**
+             * Redeemed At
+             * Format: date-time
+             */
+            redeemed_at: string;
+            /** Trip Id */
+            trip_id?: string | null;
+        };
+        /**
+         * RedemptionResultOut
+         * @description What happened to one submitted boarding.
+         *
+         *     `accepted` tells the device whether to drop the row from its queue.
+         *     A rejected code is dropped too — retrying a forged or expired code forever
+         *     would be a queue that never drains.
+         */
+        RedemptionResultOut: {
+            /** Nonce */
+            nonce: string | null;
+            /** Accepted */
+            accepted: boolean;
+            /** Reason */
+            reason: string;
+            /** Ticket Id */
+            ticket_id?: string | null;
+            /** Rides Remaining */
+            rides_remaining?: number | null;
+            flag?: components["schemas"]["RedemptionFlag"] | null;
         };
         /** RefreshRequest */
         RefreshRequest: {
@@ -978,6 +1427,44 @@ export interface components {
             /** Phone */
             phone?: string | null;
         };
+        /** TicketOut */
+        TicketOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Order Id
+             * Format: uuid
+             */
+            order_id: string;
+            /**
+             * Product Id
+             * Format: uuid
+             */
+            product_id: string;
+            /** Rides Total */
+            rides_total: number | null;
+            /** Rides Remaining */
+            rides_remaining: number | null;
+            /**
+             * Valid From
+             * Format: date-time
+             */
+            valid_from: string;
+            /**
+             * Valid To
+             * Format: date-time
+             */
+            valid_to: string;
+            status: components["schemas"]["TicketStatus"];
+        };
+        /**
+         * TicketStatus
+         * @enum {string}
+         */
+        TicketStatus: "active" | "exhausted" | "expired" | "revoked";
         /** TokenPair */
         TokenPair: {
             /** Access Token */
@@ -2056,6 +2543,285 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_products_shop_products_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductOut"][];
+                };
+            };
+        };
+    };
+    list_orders_shop_orders_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderOut"][];
+                };
+            };
+        };
+    };
+    create_order_shop_orders_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    payment_return_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    payment_return_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    payment_ipn_shop_payments_ipn_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    list_tickets_shop_tickets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketOut"][];
+                };
+            };
+        };
+    };
+    qr_material_shop_tickets__ticket_id__qr_material_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrMaterialOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    qr_image_shop_tickets__ticket_id__qr_png_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ticket_manifest_helper_manifest_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManifestTicketOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_redemptions_helper_redemptions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RedemptionBatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RedemptionBatchOut"];
                 };
             };
             /** @description Validation Error */
