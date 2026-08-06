@@ -26,6 +26,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       <nav className="tabbar">
         <NavLink href="/wallet" label="Tickets" icon="🎫" />
+        <NavLink href="/shop" label="Buy" icon="🛒" />
         <NavLink href="/map" label="Buses" icon="🚌" />
       </nav>
     </div>

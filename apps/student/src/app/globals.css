@@ -599,7 +599,7 @@ form.login button {
 
 .tabbar {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   border-top: 1px solid var(--border);
   background: var(--surface);
   /* Clears the iOS home indicator, which otherwise sits on top of the tabs. */
@@ -659,4 +659,35 @@ form.login button {
 
 .map-status .warn {
   color: var(--warn);
+}
+
+/* Outcome of a payment, shown once on return from the gateway. */
+.banner-ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.banner-bad {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.banner-warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+@media (prefers-color-scheme: dark) {
+  .banner-ok {
+    background: #06331d;
+    color: #6ee7a8;
+  }
+  .banner-bad {
+    background: #3f1414;
+    color: #fca5a5;
+  }
+  .banner-warn {
+    background: #422b06;
+    color: #fcd34d;
+  }
 }

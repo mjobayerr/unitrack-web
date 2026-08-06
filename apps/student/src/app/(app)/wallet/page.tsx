@@ -9,7 +9,34 @@ type Ticket = components["schemas"]["TicketOut"];
 
 export const dynamic = "force-dynamic";
 
-export default async function WalletPage() {
+/**
+ * What to tell someone arriving back from the payment gateway.
+ *
+ * The status comes from the API's own redirect, not from the gateway, so it
+ * already reflects a server-side validation. It is still only a *message* — the
+ * ticket list below is the real answer, and it is loaded fresh on every view.
+ */
+const OUTCOMES: Record<string, { tone: string; text: string }> = {
+  paid: { tone: "ok", text: "Payment received. Your ticket is ready." },
+  failed: { tone: "bad", text: "Payment failed. Nothing was charged." },
+  cancelled: { tone: "bad", text: "Payment cancelled." },
+  under_review: {
+    tone: "warn",
+    // Deliberately not "failed": the money may well have moved, and the
+    // reconciler will settle it. Telling them it failed would be a lie they
+    // act on by paying twice.
+    text: "Payment is being reviewed. Your ticket will appear once it clears.",
+  },
+};
+
+export default async function WalletPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status } = await searchParams;
+  const outcome = status ? OUTCOMES[status] : undefined;
+
   let tickets: Ticket[];
   try {
     tickets = await apiCall((api) => api.GET("/shop/tickets", {}));
@@ -28,6 +55,8 @@ export default async function WalletPage() {
   return (
     <main>
       <h2>My tickets</h2>
+
+      {outcome ? <p className={`banner banner-${outcome.tone}`}>{outcome.text}</p> : null}
 
       {active.length === 0 ? (
         <p className="empty">
