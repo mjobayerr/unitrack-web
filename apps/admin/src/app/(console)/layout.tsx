@@ -38,9 +38,16 @@ export default async function ConsoleLayout({ children }: { children: ReactNode 
           UniTrack
         </div>
 
+        {/* Two groups: what needs attention today, then what gets configured
+            occasionally. Products first in the second group — an empty
+            catalogue means nobody can buy a ticket at all. */}
         <nav className="nav-links">
           <NavLink href="/helpers" label="Helpers" count={pending} />
           <NavLink href="/alerts" label="Alerts" />
+          <div className="nav-divider" role="presentation" />
+          <NavLink href="/products" label="Products" />
+          <NavLink href="/routes" label="Routes" />
+          <NavLink href="/stops" label="Stops" />
         </nav>
 
         <form action={logout}>
