@@ -1,0 +1,54 @@
+# The two web apps, served through the backend's existing Cloudflare Tunnel.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# Topology:
+#   adm.kodewithmj.xyz      --tunnel--> cloudflared --> admin:3000   --> api:8000
+#   unitrack.kodewithmj.xyz --tunnel--> cloudflared --> student:3001 --> api:8000
+#   api.kodewithmj.xyz      --tunnel--> cloudflared --> nginx:80     --> api:8000
+#
+# There is one tunnel, not three. `cloudflared` lives in the unitrack-backend
+# project, so these containers join that project's network as an external
+# network — which is also how they reach `api` by name. Routing per hostname is
+# configured in the Cloudflare dashboard, not here; see deploy/web.md.
+#
+# No host ports are published. Nothing on this box needs to be reachable from
+# the internet except through the tunnel, and binding 3000 to the host would
+# quietly undo that.
+
+services:
+  admin:
+    build:
+      context: .
+      args:
+        APP: admin
+    environment:
+      # Straight to the API container, deliberately bypassing nginx.
+      #
+      # nginx rate-limits on the client IP, which for these requests is this
+      # container — so every operator using the console would share one 120 r/m
+      # bucket and start seeing 429s under perfectly normal use. The limiter
+      # exists to fend off the internet, and this is a server on the same
+      # private network, not the internet.
+      UNITRACK_API_URL: http://api:8000
+      PORT: "3000"
+    restart: unless-stopped
+    networks: [backend]
+
+  student:
+    build:
+      context: .
+      args:
+        APP: student
+    environment:
+      UNITRACK_API_URL: http://api:8000
+      PORT: "3001"
+    restart: unless-stopped
+    networks: [backend]
+
+networks:
+  backend:
+    # Created by the unitrack-backend compose project. `external` means this
+    # file joins it rather than trying to own it — bring the backend up first.
+    name: unitrack-backend_default
+    external: true
