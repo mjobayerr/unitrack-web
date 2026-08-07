@@ -1,0 +1,20 @@
+# Everything here would be copied into the build context and then thrown away.
+# node_modules matters most: it is symlink-heavy under pnpm and would both slow
+# the upload and shadow the clean install done inside the image.
+node_modules
+**/node_modules
+.next
+**/.next
+.turbo
+**/.turbo
+.git
+.claude
+*.log
+
+# Real secrets. `.env.example` files are kept — they are documentation.
+.env
+.env.local
+.env.prod
+**/.env
+**/.env.local
+**/.env.prod
