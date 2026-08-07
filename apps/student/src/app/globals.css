@@ -691,3 +691,79 @@ form.login button {
     color: #fcd34d;
   }
 }
+
+/* ---------- signup and confirmation ---------- */
+
+/* Secondary line under a form: the way out to the other screen. */
+.alt {
+  margin: 1rem 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.alt a {
+  color: var(--brand);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.alt a:hover {
+  text-decoration: underline;
+}
+
+/* Advice rather than an error — spam-folder hints, expiry explanations. */
+.note {
+  margin: 0.75rem 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* A link that has to look like the primary action, on pages whose next step is
+   navigation rather than submitting anything. */
+.button-link {
+  display: block;
+  margin-top: 1.25rem;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  background: var(--brand);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.button-link:hover {
+  filter: brightness(1.08);
+}
+
+form.login button.secondary {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.login button.secondary {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  width: 100%;
+  margin-top: 1.25rem;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login button.secondary:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--faint);
+}
+
+.login button.secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
