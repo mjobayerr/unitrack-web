@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "admin",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@unitrack/admin", "run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "student",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@unitrack/student", "run", "dev"],
+      "port": 3001
+    }
+  ]
+}

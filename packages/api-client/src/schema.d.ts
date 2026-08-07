@@ -357,6 +357,176 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Products
+         * @description The full catalogue, withdrawn products included.
+         *
+         *     Differs from `GET /shop/products` deliberately: students see only what they
+         *     can buy, while an operator has to see what they retired last month in order
+         *     to bring it back.
+         */
+        get: operations["list_products_admin_products_get"];
+        put?: never;
+        /**
+         * Create Product
+         * @description Put something on sale.
+         */
+        post: operations["create_product_admin_products_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/products/{product_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Product
+         * @description Edit a product, or withdraw it with `active: false`.
+         *
+         *     `exclude_unset=True` is what separates "clear the route scope" from "leave
+         *     the route scope alone" — both arrive as `route_scope: null` otherwise, and
+         *     every edit to a price would silently unscope the product.
+         */
+        patch: operations["update_product_admin_products__product_id__patch"];
+        trace?: never;
+    };
+    "/admin/stops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Stop */
+        post: operations["create_stop_admin_stops_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/stops/{stop_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Stop
+         * @description Remove a stop that no route uses.
+         *
+         *     Checked before attempting the delete rather than catching the database's
+         *     refusal, so the answer can say *which* routes are in the way. An operator
+         *     who is told "in use by 2 routes" knows what to do next; one who is told
+         *     "integrity error" does not.
+         */
+        delete: operations["delete_stop_admin_stops__stop_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Stop */
+        patch: operations["update_stop_admin_stops__stop_id__patch"];
+        trace?: never;
+    };
+    "/admin/routes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Route
+         * @description Create a route. Stops are attached separately — see `PUT /routes/{id}/stops`.
+         */
+        post: operations["create_route_admin_routes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/routes/{route_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Route
+         * @description Edit a route, or retire it with `is_active: false`.
+         *
+         *     There is no DELETE. `trips` reference routes with RESTRICT and every
+         *     completed trip is history someone may report on, so retiring is the only
+         *     safe removal — it disappears from `/fleet/routes` while the past still
+         *     resolves.
+         */
+        patch: operations["update_route_admin_routes__route_id__patch"];
+        trace?: never;
+    };
+    "/admin/routes/{route_id}/stops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace Route Stops
+         * @description Set the route's complete ordered stop list.
+         *
+         *     Sequence numbers come from list position, so the client expresses order by
+         *     ordering rather than by numbering — see `RouteStopIn` for why that is not
+         *     just a convenience.
+         *
+         *     The old rows are deleted and flushed **before** the new ones are added.
+         *     Without that flush SQLAlchemy is free to emit the inserts first, and
+         *     `uq_route_stops_route_seq` rejects seq 1 while the previous seq 1 is still
+         *     there. Both halves are one transaction, so a bad stop id leaves the existing
+         *     route untouched rather than wiping it.
+         */
+        put: operations["replace_route_stops_admin_routes__route_id__stops_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/fleet/buses": {
         parameters: {
             query?: never;
@@ -868,6 +1038,35 @@ export interface components {
              */
             route_id: string;
         };
+        /**
+         * AdminProductOut
+         * @description A product as the admin console sees it.
+         *
+         *     Carries `active`, which `ProductOut` deliberately omits — the shop only ever
+         *     lists active products, so the field would be a constant `true` there. Here it
+         *     is the whole point: withdrawing something from sale is how a product is
+         *     retired, since `orders` and `tickets` reference it forever.
+         */
+        AdminProductOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            type: components["schemas"]["ProductType"];
+            /** Name */
+            name: string;
+            /** Price Paisa */
+            price_paisa: number;
+            /** Ride Count */
+            ride_count: number | null;
+            /** Validity Days */
+            validity_days: number;
+            /** Route Scope */
+            route_scope: string | null;
+            /** Active */
+            active: boolean;
+        };
         /** AlertOut */
         AlertOut: {
             /**
@@ -1179,6 +1378,35 @@ export interface components {
          * @enum {string}
          */
         OrderStatus: "initiated" | "pending" | "paid" | "failed" | "cancelled" | "refunded";
+        /**
+         * ProductCreate
+         * @description A new thing to sell.
+         *
+         *     Priced in **paisa**, like every other amount in this system — 100.00 BDT is
+         *     `10000`. Taking a decimal here would put a float on the money path, and the
+         *     order that copies this value is what a student is charged.
+         */
+        ProductCreate: {
+            type: components["schemas"]["ProductType"];
+            /** Name */
+            name: string;
+            /** Price Paisa */
+            price_paisa: number;
+            /** Ride Count */
+            ride_count?: number | null;
+            /**
+             * Validity Days
+             * @default 30
+             */
+            validity_days: number;
+            /** Route Scope */
+            route_scope?: string | null;
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+        };
         /** ProductOut */
         ProductOut: {
             /**
@@ -1203,6 +1431,32 @@ export interface components {
          * @enum {string}
          */
         ProductType: "single" | "bulk" | "package";
+        /**
+         * ProductUpdate
+         * @description A partial edit. Unset fields are left alone.
+         *
+         *     Every field is optional and `None` is a meaningful value for `route_scope`,
+         *     so callers must be able to say "clear the route scope" without that being
+         *     confused with "don't touch it". The handler uses `exclude_unset=True` to
+         *     tell those apart — without it, every PATCH would silently unscope a product.
+         *
+         *     Editing `price_paisa` is safe and does not rewrite history: `orders` copy
+         *     the amount at purchase time, so a price change only affects future sales.
+         */
+        ProductUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Price Paisa */
+            price_paisa?: number | null;
+            /** Ride Count */
+            ride_count?: number | null;
+            /** Validity Days */
+            validity_days?: number | null;
+            /** Route Scope */
+            route_scope?: string | null;
+            /** Active */
+            active?: boolean | null;
+        };
         /**
          * QrMaterialOut
          * @description Everything a student's device needs to render boarding codes offline.
@@ -1304,6 +1558,19 @@ export interface components {
             /** Refresh Token */
             refresh_token: string;
         };
+        /** RouteCreate */
+        RouteCreate: {
+            /** Name */
+            name: string;
+            direction: components["schemas"]["RouteDirection"];
+            /** Polyline */
+            polyline?: string | null;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+        };
         /**
          * RouteDetailOut
          * @description A route plus its ordered stops and drawn shape.
@@ -1347,6 +1614,25 @@ export interface components {
             is_active: boolean;
         };
         /**
+         * RouteStopIn
+         * @description One stop's place in a route.
+         *
+         *     No `seq` field — position in the submitted list *is* the sequence. Letting a
+         *     client send both an order and a number invites the two to disagree, and
+         *     `uq_route_stops_route_seq` turns that disagreement into a 500. The server
+         *     numbers them 1..n instead, which also makes reordering a matter of sending
+         *     the list in the new order.
+         */
+        RouteStopIn: {
+            /**
+             * Stop Id
+             * Format: uuid
+             */
+            stop_id: string;
+            /** Scheduled Offset Min */
+            scheduled_offset_min?: number | null;
+        };
+        /**
          * RouteStopOut
          * @description A stop in the context of one route — sequence and timing included.
          */
@@ -1356,6 +1642,33 @@ export interface components {
             /** Scheduled Offset Min */
             scheduled_offset_min: number | null;
             stop: components["schemas"]["StopOut"];
+        };
+        /**
+         * RouteStopsReplace
+         * @description The complete ordered stop list for a route.
+         *
+         *     Replace-the-whole-list rather than add/remove/move endpoints. The sequence
+         *     numbers are unique per route, so any incremental edit collides with itself
+         *     partway through — moving stop 3 to position 2 needs position 2 free, which
+         *     it is not until stop 2 has already moved. Sending the final order sidesteps
+         *     the entire problem.
+         */
+        RouteStopsReplace: {
+            /** Stops */
+            stops: components["schemas"]["RouteStopIn"][];
+        };
+        /**
+         * RouteUpdate
+         * @description A partial edit. Unset fields are left alone; `polyline` may be cleared.
+         */
+        RouteUpdate: {
+            /** Name */
+            name?: string | null;
+            direction?: components["schemas"]["RouteDirection"] | null;
+            /** Polyline */
+            polyline?: string | null;
+            /** Is Active */
+            is_active?: boolean | null;
         };
         /**
          * SeatReportIn
@@ -1393,6 +1706,15 @@ export interface components {
              */
             reported_at: string;
         };
+        /** StopCreate */
+        StopCreate: {
+            /** Name */
+            name: string;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+        };
         /** StopOut */
         StopOut: {
             /**
@@ -1406,6 +1728,22 @@ export interface components {
             lat: number;
             /** Lng */
             lng: number;
+        };
+        /**
+         * StopUpdate
+         * @description Rename or move a stop. Unset fields are left alone.
+         *
+         *     Moving one changes where every route through it is drawn, which is correct:
+         *     a stop that was mapped to the wrong side of a road should be fixed once,
+         *     not worked around in each route.
+         */
+        StopUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Lat */
+            lat?: number | null;
+            /** Lng */
+            lng?: number | null;
         };
         /** StudentRegister */
         StudentRegister: {
@@ -1464,7 +1802,7 @@ export interface components {
          * TicketStatus
          * @enum {string}
          */
-        TicketStatus: "active" | "exhausted" | "expired" | "revoked";
+        TicketStatus: "active" | "exhausted" | "expired" | "suspended" | "revoked";
         /** TokenPair */
         TokenPair: {
             /** Access Token */
@@ -2207,6 +2545,432 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BusOut"][];
+                };
+            };
+            /** @description Missing, malformed or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated, but not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_products_admin_products_get: {
+        parameters: {
+            query?: {
+                /** @description Withdrawn products too. */
+                include_inactive?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProductOut"][];
+                };
+            };
+            /** @description Missing, malformed or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated, but not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_product_admin_products_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProductOut"];
+                };
+            };
+            /** @description Missing, malformed or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated, but not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_product_admin_products__product_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProductOut"];
+                };
+            };
+            /** @description Missing, malformed or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated, but not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_stop_admin_stops_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StopCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StopOut"];
+                };
+            };
+            /** @description Missing, malformed or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated, but not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_stop_admin_stops__stop_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                stop_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing, malformed or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated, but not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_stop_admin_stops__stop_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                stop_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StopUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StopOut"];
+                };
+            };
+            /** @description Missing, malformed or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated, but not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_route_admin_routes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RouteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteOut"];
+                };
+            };
+            /** @description Missing, malformed or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated, but not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_route_admin_routes__route_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                route_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RouteUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteOut"];
+                };
+            };
+            /** @description Missing, malformed or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated, but not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_route_stops_admin_routes__route_id__stops_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                route_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RouteStopsReplace"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteDetailOut"];
                 };
             };
             /** @description Missing, malformed or expired access token */
