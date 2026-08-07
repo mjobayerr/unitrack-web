@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 
 import { login, type LoginState } from "./actions";
@@ -40,6 +41,10 @@ export default function LoginPage() {
         <button type="submit" disabled={pending}>
           {pending ? "Signing in…" : "Sign in"}
         </button>
+
+        <p className="alt">
+          New here? <Link href="/register">Create an account</Link>
+        </p>
       </form>
     </div>
   );

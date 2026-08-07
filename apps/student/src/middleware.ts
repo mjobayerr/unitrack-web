@@ -24,7 +24,11 @@ import {
 
 const API_BASE_URL = process.env.UNITRACK_API_URL ?? "http://localhost:8000";
 
-const PUBLIC_PATHS = new Set(["/login"]);
+// Reachable without a session, by necessity. `/register` is for people who have
+// no account; `/verify` is opened from an emailed link by someone who cannot
+// sign in yet — that is precisely what the link is for. Guarding either would
+// bounce every new student to a login they cannot pass.
+const PUBLIC_PATHS = new Set(["/login", "/register", "/verify"]);
 
 /**
  * Turn away an unauthenticated request in whatever form its caller understands.
