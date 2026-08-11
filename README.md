@@ -4,12 +4,20 @@ Web clients for **UniTrack**, a university bus ticketing + live-tracking platfor
 
 ## Apps
 
-- **Student PWA** — Next.js (App Router). MapLibre GL JS + free OSM tiles. Offline ticket wallet (IndexedDB) with a rotating TOTP-style QR. Live map, per-stop ETA, SOS button. Service worker so tickets work with zero network.
-- **Admin dashboard** — Next.js. Live fleet map, emergency console, CRUD, reports, trip playback. Report pages use pre-aggregated tables — never scan raw data.
+- **Student app** — Next.js (App Router). Sign-up with email confirmation, ticket
+  shop and checkout through SSLCommerz, a wallet that renders the rotating
+  boarding QR, and a live bus map on MapLibre GL JS with free OSM tiles.
+- **Admin console** — Next.js. Helper approval queue, emergency alerts console,
+  and catalog management for products, routes and stops.
 
 ## Stack
 
-Next.js · MapLibre GL JS (free OSM tiles, zero quota) · IndexedDB (offline wallet) · WebSocket for live position/ETA/seat frames · Recharts (admin).
+Next.js 15 (App Router, React 19) · MapLibre GL JS (free OSM tiles, zero quota) ·
+pnpm + Turborepo · types generated from the backend's OpenAPI schema.
+
+Live data is **polled**, not pushed — the backend's `/ws/track/{route_id}` is not
+built yet, so the map refreshes on an interval. Swapping in a socket later
+touches only the map's data hook.
 
 ## Contract
 
@@ -22,22 +30,36 @@ No backend code here. Talks only to the **[unitrack-backend](https://github.com/
 
 ## Status
 
-**Admin dashboard: working.** Helper approval queue and the emergency alerts
-console run against the real backend. **Student PWA: not started** — its core
-is the ticket wallet, which is blocked on the backend's bKash-gated ticketing.
+Both apps run against the real backend. `pnpm typecheck`, `pnpm lint` and
+`pnpm build` all pass, and run in CI on every push
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+
+**Functional:**
 
 | Area | State |
 |---|---|
 | Workspace (pnpm + Turborepo), shared API client | ✅ |
 | Types generated from the backend's `openapi.json` | ✅ |
-| Admin auth — login, logout, refresh | ✅ |
-| Helper approval queue (approve / suspend) | ✅ |
-| Alerts console (acknowledge / resolve with note) | ✅ |
-| Bus creation | ⬜ endpoints exist, no UI yet |
-| Route / stop management | ⛔ backend has no CRUD for these |
-| Student PWA, live map, ticket wallet | ⬜ / ⛔ bKash-gated |
+| Shared ESLint config (`@unitrack/eslint-config`) | ✅ |
+| Auth — login, logout, refresh, httpOnly cookies | ✅ |
+| **Admin** — helper approval queue (approve / suspend) | ✅ |
+| **Admin** — alerts console (acknowledge / resolve with note) | ✅ |
+| **Admin** — catalog: products, routes, stops | ✅ |
+| **Student** — sign-up + email confirmation | ✅ |
+| **Student** — ticket shop and SSLCommerz checkout | ✅ |
+| **Student** — wallet with the rotating boarding QR | ✅ |
+| **Student** — live bus map (MapLibre) | ✅ |
 
-## Running the admin app
+**Not built yet:**
+
+| Area | Notes |
+|---|---|
+| Live map over WebSocket | Polls today; backend `/ws/track` not built |
+| Reports / dashboards | Backend has no aggregate tables yet (spec §10) |
+| Offline ticket wallet (service worker + IndexedDB) | Wallet needs the network today. The spec wants tickets to render with zero signal |
+| Trip playback, bus CRUD UI | Endpoints exist for buses; no screen |
+
+## Running the apps
 
 The backend must be up and reachable first — see `unitrack-backend`, whose dev
 compose publishes the API on `127.0.0.1:8000`.
@@ -45,10 +67,27 @@ compose publishes the API on `127.0.0.1:8000`.
 ```bash
 pnpm install
 cp apps/admin/.env.example apps/admin/.env.local
-pnpm --filter @unitrack/admin run dev      # http://localhost:3000
+cp apps/student/.env.example apps/student/.env.local
+
+pnpm dev                                    # both apps
+pnpm --filter @unitrack/admin run dev       # admin only  → localhost:3000
+pnpm --filter @unitrack/student run dev     # student only → localhost:3001
 ```
 
-Sign in with the seeded admin: `admin@ulab.edu.bd` / `Admin@1234`.
+Sign in with the seeded accounts (`python -m scripts.seed` in the backend):
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@ulab.edu.bd` | `Admin@1234` |
+| Student | see the backend's seed output | |
+
+## Checks
+
+```bash
+pnpm typecheck      # tsc --noEmit across the workspace
+pnpm lint           # eslint, shared flat config
+pnpm build          # production compile + prerender
+```
 
 Regenerate the API types whenever the backend contract changes:
 

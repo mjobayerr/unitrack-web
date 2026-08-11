@@ -1,0 +1,14 @@
+{
+  "name": "@unitrack/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./next": "./next.mjs"
+  },
+  "dependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "^15.1.3"
+  }
+}

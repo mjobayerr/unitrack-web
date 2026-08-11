@@ -1,0 +1,47 @@
+name: CI
+
+# Typecheck, lint and build both Next apps.
+#
+# The build step is not redundant with typecheck: `next build` also runs the
+# production compile and prerenders every static route, which catches a whole
+# class of failure `tsc --noEmit` never sees — a server component reaching for a
+# browser API, or a page that throws while being prerendered.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # Caches the pnpm store keyed on the lockfile.
+          cache: pnpm
+
+      # --frozen-lockfile so a lockfile that drifted from package.json fails
+      # here rather than silently resolving to different versions than a
+      # developer has. It is the default in CI, but being explicit documents it.
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      # No UNITRACK_API_URL set on purpose: both apps fall back to
+      # http://localhost:8000, and nothing calls the API while prerendering. A
+      # build that needed a reachable backend would be a build that could not
+      # run in CI at all.
+      - name: Build
+        run: pnpm build
