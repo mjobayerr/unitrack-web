@@ -7,8 +7,9 @@ Web clients for **UniTrack**, a university bus ticketing + live-tracking platfor
 - **Student app** — Next.js (App Router). Sign-up with email confirmation, ticket
   shop and checkout through SSLCommerz, a wallet that renders the rotating
   boarding QR, and a live bus map on MapLibre GL JS with free OSM tiles.
-- **Admin console** — Next.js. Helper approval queue, emergency alerts console,
-  and catalog management for products, routes and stops.
+- **Admin console** — Next.js. Live fleet map with a GPS-freshness indicator,
+  helper approval queue, emergency alerts console, and catalog management for
+  products, routes and stops.
 
 ## Stack
 
@@ -45,6 +46,7 @@ Both apps run against the real backend. `pnpm typecheck`, `pnpm lint` and
 | **Admin** — helper approval queue (approve / suspend) | ✅ |
 | **Admin** — alerts console (acknowledge / resolve with note) | ✅ |
 | **Admin** — catalog: products, routes, stops | ✅ |
+| **Admin** — live fleet map, GPS-freshness pins (spec §10.2) | ✅ |
 | **Student** — sign-up + email confirmation | ✅ |
 | **Student** — ticket shop and SSLCommerz checkout | ✅ |
 | **Student** — wallet with the rotating boarding QR | ✅ |
@@ -54,7 +56,8 @@ Both apps run against the real backend. `pnpm typecheck`, `pnpm lint` and
 
 | Area | Notes |
 |---|---|
-| Live map over WebSocket | Polls today; backend `/ws/track` not built |
+| Live maps over WebSocket | Both maps poll today (student 10 s, admin 5 s); backend `/ws/track` not built |
+| Trip drawer on the fleet map | §10.2 also wants route progress %, latest redemptions and seat history per bus |
 | Reports / dashboards | Backend has no aggregate tables yet (spec §10) |
 | Offline ticket wallet (service worker + IndexedDB) | Wallet needs the network today. The spec wants tickets to render with zero signal |
 | Trip playback, bus CRUD UI | Endpoints exist for buses; no screen |
