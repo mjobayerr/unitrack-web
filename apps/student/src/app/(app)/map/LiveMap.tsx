@@ -45,6 +45,12 @@ export function LiveMap() {
   useEffect(() => {
     if (!container.current || map.current) return;
 
+    // Captured for the cleanup below. The ref object is created once and never
+    // reassigned, so this is the same Map either way — but reading `.current`
+    // inside a cleanup is the pattern react-hooks warns about, and the warning
+    // is worth keeping switched on for the cases where it is a real bug.
+    const pins = markers.current;
+
     map.current = new maplibregl.Map({
       container: container.current,
       style: STYLE_URL,
@@ -61,6 +67,12 @@ export function LiveMap() {
     return () => {
       map.current?.remove();
       map.current = null;
+      // Removing the map destroys its markers, but this cache would still hold
+      // the dead Marker objects. The pin effect looks buses up by id and calls
+      // setLngLat on a hit, so a stale entry means that bus is silently never
+      // drawn on the replacement map — which is what happens on a remount, and
+      // on every mount under React's development double-invoke.
+      pins.clear();
     };
   }, []);
 
@@ -129,17 +141,20 @@ export function LiveMap() {
 
     for (const bus of buses) {
       const position: [number, number] = [bus.location.lon, bus.location.lat];
+      const label = `${bus.distance_km.toFixed(1)} km away`;
       const existing = markers.current.get(bus.bus_id);
+
       if (existing) {
         existing.setLngLat(position);
+        // The popup text has to be updated too, not just the pin. Setting it
+        // only at creation left a bus advertising the distance it was at when it
+        // first appeared — so a pin that had visibly moved across the map still
+        // claimed to be 4 km away ten minutes later.
+        existing.getPopup()?.setText(label);
       } else {
         const marker = new maplibregl.Marker({ color: "#1a3c8f" })
           .setLngLat(position)
-          .setPopup(
-            new maplibregl.Popup({ offset: 24 }).setText(
-              `${bus.distance_km.toFixed(1)} km away`,
-            ),
-          )
+          .setPopup(new maplibregl.Popup({ offset: 24 }).setText(label))
           .addTo(map.current);
         markers.current.set(bus.bus_id, marker);
       }
