@@ -13,12 +13,35 @@
   --brand-ink: #ffffff;
   --brand-soft: #eef2fb;
 
-  --success: #22c55e;
+  /* The navigation rail. Deep slate in both colour schemes, because it is a
+     surface rather than a text colour and an operator's chrome should not
+     restyle itself when the room lights change.
+     Flooding the rail with --brand made the navy the *background* and left
+     nothing for the current page to be marked with except a paler wash of
+     white. The reference keeps the rail neutral and spends the navy on the
+     active item, which is the only thing on the rail worth spending it on. */
+  --rail: #1e293b;
+  --rail-border: #334155;
+  --rail-text: #94a3b8;
+  --rail-faint: #64748b;
+  /* The current-page pill. Deep navy in both schemes, and deliberately not
+     --brand: that token doubles as a text colour, so dark mode lightens it to
+     #4f7fe0 — which as a *fill* under white text measures 3.86:1, under AA, on
+     the one element telling the operator where they are. Measured, not guessed.
+     At #1a3c8f white is 10:1, and the rail is the same slate in both schemes
+     anyway, so there is nothing for it to adapt to. */
+  --rail-active: #1a3c8f;
+
+  /* Green from the reference, for a live/positive indicator. */
+  --accent: #1db954;
+
+  --success: #1db954;
   --info: #3b82f6;
   --warn: #f59e0b;
   --danger: #ef4444;
 
   --radius: 12px;
+  --radius-lg: 16px;
   --shadow: 0 0 0.5px rgba(16, 24, 40, 0.28), 0 1px 2px rgba(16, 24, 40, 0.06),
     0 4px 12px rgba(16, 24, 40, 0.04);
 }
@@ -68,31 +91,52 @@ body {
 }
 
 .sidebar {
-  background: var(--brand);
-  color: var(--brand-ink);
-  padding: 1.25rem 0.85rem;
+  background: var(--rail);
+  color: #fff;
+  border-right: 1px solid var(--rail-border);
+  padding: 0 0.7rem 0.7rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0.9rem;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0 0.5rem;
+  gap: 0.65rem;
+  /* Full-bleed within the rail's padding so the rule under it spans the width,
+     which is what separates the identity from the navigation. */
+  margin: 0 -0.7rem;
+  padding: 0.95rem 1.05rem;
+  border-bottom: 1px solid var(--rail-border);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
 
+/* The navy moves here from the rail: a small brand mark rather than a wash. */
 .brand .dot {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.16);
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  /* Same reasoning as the active pill: a fill carrying white text. */
+  background: var(--rail-active);
   display: grid;
   place-items: center;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 800;
+  flex: none;
+}
+
+.brand-text {
+  display: grid;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.brand-text small {
+  color: var(--rail-faint);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .nav-links {
@@ -104,23 +148,76 @@ body {
 .nav-links a {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.7rem;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.75);
+  gap: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  /* 12px, matching the reference's rounded-xl pills. */
+  border-radius: 12px;
+  color: var(--rail-text);
   text-decoration: none;
   font-weight: 500;
+  font-size: 13.5px;
+  min-height: 38px;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.nav-links a svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--rail-faint);
+}
+
+.nav-label {
+  /* Truncates rather than wrapping: a two-line nav item breaks the rhythm of the
+     rail, and every label here is short enough that it will not trigger. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-count {
+  margin-left: auto;
 }
 
 .nav-links a:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.07);
   color: #fff;
 }
 
+.nav-links a:hover svg {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* The current page is the one thing on this rail worth the brand colour. */
 .nav-links a[aria-current="page"] {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--rail-active);
   color: #fff;
+  font-weight: 600;
+}
+
+.nav-links a[aria-current="page"] svg {
+  color: #fff;
+}
+
+/* Section labels, per the reference. Six destinations in one undifferentiated
+   list makes an operator read all six; split into what is happening now and what
+   gets configured occasionally, they only read the half they need. */
+.nav-group {
+  margin: 0.75rem 0 0.25rem;
+  padding: 0 0.7rem;
+  /* --rail-text, not --rail-faint: at 10.5px these measured 3.07:1 against the
+     rail, which is too low for something an operator is meant to read to find
+     their way. They are aria-hidden, so the fix is for sighted use only. */
+  color: var(--rail-text);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.nav-group:first-child {
+  margin-top: 0.25rem;
 }
 
 .nav-count {
@@ -398,9 +495,36 @@ button.secondary:hover:not(:disabled) {
 }
 
 button.ghost-light {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: transparent;
+  color: var(--rail-text);
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+  min-height: 38px;
+  font-size: 13.5px;
+  font-weight: 500;
+  /* Reads as the last item on the rail rather than a filled button competing with
+     the current page for attention. Signing out is not what an operator came for. */
+  border-top: 1px solid var(--rail-border);
+  border-radius: 0;
+  margin: 0 -0.7rem -0.7rem;
+  padding: 0.85rem 1.05rem;
+}
+
+button.ghost-light svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--rail-faint);
+}
+
+button.ghost-light:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+  filter: none;
 }
 
 /* ---------- states ---------- */

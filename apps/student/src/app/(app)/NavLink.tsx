@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 
 export function NavLink({
   href,
@@ -10,14 +11,17 @@ export function NavLink({
 }: {
   href: string;
   label: string;
-  icon: string;
+  /// The glyph itself, not a name to look up. Passing the element keeps the icon
+  /// set a plain module the bundler can tree-shake, with no registry to keep in
+  /// step with the routes.
+  icon: ReactNode;
 }) {
   const pathname = usePathname();
   const current = pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <Link href={href} aria-current={current ? "page" : undefined}>
-      <span aria-hidden="true">{icon}</span>
+      {icon}
       <span>{label}</span>
     </Link>
   );

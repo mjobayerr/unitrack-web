@@ -2,6 +2,15 @@ import type { ReactNode } from "react";
 
 import { apiCall } from "../../lib/api";
 import { logout } from "../login/actions";
+import {
+  AlertsIcon,
+  FleetIcon,
+  HelpersIcon,
+  ProductsIcon,
+  RoutesIcon,
+  SignOutIcon,
+  StopsIcon,
+} from "./icons";
 import { NavLink } from "./NavLink";
 
 export const dynamic = "force-dynamic";
@@ -35,25 +44,39 @@ export default async function ConsoleLayout({ children }: { children: ReactNode 
           <span className="dot" aria-hidden="true">
             UT
           </span>
-          UniTrack
+          <span className="brand-text">
+            UniTrack
+            <small>Admin console</small>
+          </span>
         </div>
 
         {/* Two groups: what needs attention today, then what gets configured
             occasionally. Products first in the second group — an empty
             catalogue means nobody can buy a ticket at all. */}
         <nav className="nav-links">
+          <p className="nav-group" aria-hidden="true">
+            Operations
+          </p>
           {/* First: it is the only page that shows what is happening right now. */}
-          <NavLink href="/fleet" label="Live fleet" />
-          <NavLink href="/helpers" label="Helpers" count={pending} />
-          <NavLink href="/alerts" label="Alerts" />
-          <div className="nav-divider" role="presentation" />
-          <NavLink href="/products" label="Products" />
-          <NavLink href="/routes" label="Routes" />
-          <NavLink href="/stops" label="Stops" />
+          <NavLink href="/fleet" label="Live fleet" icon={<FleetIcon />} />
+          <NavLink
+            href="/helpers"
+            label="Helpers"
+            icon={<HelpersIcon />}
+            count={pending}
+          />
+          <NavLink href="/alerts" label="Alerts" icon={<AlertsIcon />} />
+          <p className="nav-group" aria-hidden="true">
+            Configuration
+          </p>
+          <NavLink href="/products" label="Products" icon={<ProductsIcon />} />
+          <NavLink href="/routes" label="Routes" icon={<RoutesIcon />} />
+          <NavLink href="/stops" label="Stops" icon={<StopsIcon />} />
         </nav>
 
         <form action={logout}>
           <button className="ghost-light" type="submit">
+            <SignOutIcon />
             Sign out
           </button>
         </form>

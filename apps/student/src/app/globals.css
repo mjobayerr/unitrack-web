@@ -13,14 +13,42 @@
   --brand-ink: #ffffff;
   --brand-soft: #eef2fb;
 
-  --success: #22c55e;
+  /* The header band, separate from --brand on purpose.
+     --brand doubles as a *text* colour (links, the active tab), so dark mode
+     lightens it to stay legible on a dark canvas. A band is the opposite job: it
+     is a surface carrying white text, and the lightened value gave the heading
+     3.86:1 — under AA. The band therefore stays deep navy in both schemes, where
+     white measures 10:1. */
+  --band: #1a3c8f;
+
+  /* The reference design's green. It is the accent, not just a success state:
+     confirmations, live indicators and the buy action all use it, which is what
+     stops a screen from being solid navy.
+     Used where it carries *dark* text or no text at all — a pill, a dot, a bar.
+     Against #052e16 it measures 5.76:1. */
+  --accent: #1db954;
+  --accent-ink: #052e16;
+
+  /* The same green, darkened, for a filled control with white text.
+     The reference pairs #FFFFFF with #1DB954 directly, and that combination
+     measures 2.59:1 — below AA for normal text and below even the 3:1 large-text
+     floor, so the label on the one button that takes money would be the hardest
+     thing on the screen to read. This shade keeps the hue and reaches 5.04:1.
+     Both numbers measured in the browser, not estimated. */
+  --accent-strong: #128038;
+
+  --success: #1db954;
   --info: #3b82f6;
   --warn: #f59e0b;
   --danger: #ef4444;
 
   --radius: 12px;
+  /* Cards sit on a tinted canvas and overlap a coloured band, so they need a
+     shadow with enough spread to read as lifted rather than merely outlined. */
+  --radius-lg: 16px;
   --shadow: 0 0 0.5px rgba(16, 24, 40, 0.28), 0 1px 2px rgba(16, 24, 40, 0.06),
     0 4px 12px rgba(16, 24, 40, 0.04);
+  --shadow-lift: 0 1px 2px rgba(16, 24, 40, 0.08), 0 8px 24px rgba(16, 24, 40, 0.1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -36,7 +64,17 @@
     --brand-ink: #0b1220;
     --brand-soft: #1c2c4e;
 
+    /* Lifted for contrast on a dark canvas — #1db954 on near-black is legible,
+       but it loses too much against the slate surface the cards use. */
+    --accent: #2ee06a;
+    --accent-ink: #04150a;
+    /* On a dark canvas the darkened fill would disappear, so the filled button
+       inverts: bright green with dark ink, which is the pairing that measures
+       best in both directions. */
+    --accent-strong: #2ee06a;
+
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.25);
+    --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.5), 0 10px 28px rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -361,7 +399,10 @@ button {
   font-weight: 600;
   font-size: 13px;
   padding: 0.4rem 0.85rem;
-  border-radius: 8px;
+  /* 10px rather than 8px, and 12px on the larger controls — the reference is
+     consistently rounder than this was, and the radius is most of what makes it
+     look like a phone app rather than a form. */
+  border-radius: 10px;
   border: 1px solid transparent;
   background: var(--brand);
   color: #fff;
@@ -414,31 +455,71 @@ button.ghost-light {
 
 /* ---------- login ---------- */
 
+/* Sign-in and sign-up, styled like the rest of the app rather than as a plain
+   centred card. The reference puts a deep-blue panel behind a rounded lower edge
+   and floats the form up over it; the same treatment as the signed-in shell, so
+   the first screen a student sees already looks like the app.
+
+   The band is a pseudo-element rather than a wrapper div so the page components
+   keep their markup. */
 .login-page {
-  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 0 1.25rem 2rem;
+  position: relative;
   display: grid;
-  place-items: center;
-  padding: 1.5rem;
+  align-content: start;
+}
+
+.login-page::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 210px;
+  background: var(--band);
+  background-image:
+    radial-gradient(circle at 106% -4%, rgba(255, 255, 255, 0.09) 0 24%, transparent 25%),
+    radial-gradient(circle at -6% 108%, rgba(255, 255, 255, 0.06) 0 20%, transparent 21%);
+  /* The curve is the reference's, and it is what stops the band reading as a
+     coloured header bar. */
+  border-radius: 0 0 28px 28px;
 }
 
 form.login {
-  width: min(23rem, 100%);
+  position: relative;
+  width: 100%;
   background: var(--surface);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 1.75rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  padding: 1.5rem 1.25rem;
   display: grid;
   gap: 0.7rem;
+  /* Floats up over the band's lower edge. */
+  margin-top: 148px;
+}
+
+/* Title and tagline sit on the band, above the card. */
+.login-page > form.login > h1,
+.login-page > form.login > .sub {
+  position: absolute;
+  left: 0;
+  color: #fff;
 }
 
 form.login h1 {
-  font-size: 19px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   margin: 0;
+  top: -104px;
 }
 
 form.login .sub {
-  margin-bottom: 0.4rem;
+  margin: 0;
+  top: -72px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
 }
 
 label {
@@ -475,8 +556,15 @@ input:focus {
 }
 
 form.login button {
-  margin-top: 0.35rem;
-  padding: 0.55rem;
+  margin-top: 0.6rem;
+  /* 48px and full width, like the reference's primary control. The 40px this was
+     is under the thumb minimum, on the one button every student presses. */
+  min-height: 48px;
+  padding: 0 1rem;
+  width: 100%;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .error {
@@ -537,16 +625,25 @@ form.login button {
   display: grid;
   grid-template-rows: auto 1fr auto;
   height: 100dvh;
+  /* Centred and capped, matching the reference. On a desktop browser the app
+     stays a phone rather than stretching three destinations across 1400px. */
+  max-width: 430px;
+  margin: 0 auto;
+  background: var(--bg);
+  /* The band and the canvas meet at a hard edge; on a wide screen that edge
+     wants a boundary or the app looks like it is floating in the page. */
+  box-shadow: 0 0 0 1px var(--border);
 }
 
 .phone-content {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* Contains the negative margin the first card uses to climb the band. */
+  position: relative;
 }
 
 .phone-shell main {
   padding: 1rem;
-  max-width: 34rem;
   margin: 0 auto;
 }
 
@@ -554,6 +651,91 @@ form.login button {
   font-size: 18px;
   font-weight: 700;
   margin: 0 0 0.75rem;
+}
+
+/* ---------- the brand band ---------- */
+
+/* Deep navy, with the page's first card pulled up over its lower edge. Three
+   translucent circles for depth, drawn as radial gradients: an image would be a
+   request that can fail and a file to keep, for something purely decorative. */
+.topbar {
+  background: var(--band);
+  color: #fff;
+  padding: 1.1rem 1rem 3.25rem;
+  background-image:
+    radial-gradient(circle at 108% -6%, rgba(255, 255, 255, 0.09) 0 26%, transparent 27%),
+    radial-gradient(circle at 96% 42%, rgba(255, 255, 255, 0.07) 0 14%, transparent 15%),
+    radial-gradient(circle at -8% 118%, rgba(255, 255, 255, 0.06) 0 22%, transparent 23%);
+}
+
+.topbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.wordmark-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.18);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* Sign out sits on the band, so it cannot be a grey button on white. */
+.topbar .ghost {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  padding: 0 0.9rem;
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 600;
+  width: auto;
+}
+
+.topbar .ghost:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* Every screen's content climbs the band by this much. The value is the band's
+   bottom padding minus a little, so the card overlaps without covering the
+   wordmark. */
+.phone-shell main {
+  margin-top: -2.5rem;
+}
+
+/* The map is the exception: it fills the area edge to edge and must not be
+   pulled under a band it would then be clipped by. */
+.phone-shell main.map-page {
+  margin-top: 0;
+}
+
+/* With nothing climbing it, the band's deep bottom padding is 50px of empty
+   blue above the map. `:has()` lets the shell react to which screen is mounted
+   without the server layout having to know the route. */
+.phone-shell:has(main.map-page) .topbar {
+  padding-bottom: 1.1rem;
+}
+
+.phone-shell h2 {
+  /* Sits on the band, above the first card. */
+  color: #fff;
+  padding: 0 0.15rem;
 }
 
 .section {
@@ -567,6 +749,11 @@ form.login button {
 .card {
   padding: 1rem;
   margin-bottom: 0.85rem;
+  /* Larger radius and a lifted shadow, per the reference. These cards overlap a
+     coloured band, so an outline alone reads as a seam rather than a card. */
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  border: none;
 }
 
 /* Used on all three student screens and defined in neither stylesheet until now,
@@ -615,7 +802,26 @@ form.login button {
   margin-top: 0.85rem;
   padding: 0.7rem;
   /* Comfortably past the 44px minimum for a thumb on a moving bus. */
-  min-height: 44px;
+  min-height: 46px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+/* The purchase button takes the accent green rather than the brand navy.
+   In the reference, green is what a positive action looks like, and on the shop
+   screen it separates "buy this" from the navy chrome around it.
+   `--accent-strong`, not `--accent` — see the token for the contrast measurement. */
+.card > form > button {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* Dark mode inverts it: the bright green fill carries dark ink. White on the
+     darkened green would be legible but muddy against a slate card. */
+  .card > form > button {
+    color: var(--accent-ink);
+  }
 }
 
 .center {
@@ -658,20 +864,31 @@ form.login button {
 .tabbar a {
   display: grid;
   place-items: center;
-  gap: 2px;
-  padding: 0.6rem 0;
+  gap: 3px;
+  padding: 0.55rem 0;
   text-decoration: none;
-  color: var(--muted);
+  /* --faint, not --muted: the reference keeps unselected tabs clearly recessive
+     so the current one reads at a glance rather than on comparison. */
+  color: var(--faint);
   font-size: 12px;
   font-weight: 600;
+  min-height: 56px;
+  transition: color 120ms ease;
 }
 
 .tabbar a[aria-current="page"] {
   color: var(--brand);
 }
 
-.tabbar span[aria-hidden] {
-  font-size: 20px;
+.tabbar svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Thicker stroke on the selected tab. The reference does this instead of a
+   filled variant, so one glyph covers both states. */
+.tabbar a[aria-current="page"] svg {
+  stroke-width: 2.5;
 }
 
 /* ---------- map ---------- */

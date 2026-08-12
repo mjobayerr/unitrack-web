@@ -16,6 +16,36 @@ Web clients for **UniTrack**, a university bus ticketing + live-tracking platfor
 Next.js 15 (App Router, React 19) · MapLibre GL JS (free OSM tiles, zero quota) ·
 pnpm + Turborepo · types generated from the backend's OpenAPI schema.
 
+## Design
+
+The visual language comes from the UniTrack BD design in
+[`design/figma-reference`](../../tree/design/figma-reference) — a Figma Make export
+(`frontend/`, Vite + shadcn/ui) contributed in
+[#7](https://github.com/mjobayerr/unitrack-web/pull/7). That branch is the
+reference only; **it is not built or deployed**, and it makes no network calls of
+any kind, so nothing in it can be pointed at the API as-is.
+
+The design was ported onto these two apps rather than replacing them, for two
+reasons worth writing down:
+
+- It is a Vite SPA. These apps are a backend-for-frontend precisely so tokens
+  live in httpOnly cookies the browser cannot read (see **Auth** below); an SPA
+  moves them into page scripts, which on a console that can approve helpers and
+  suspend accounts is a bad trade.
+- It assumes a stored-value wallet with bKash top-up and a balance. The backend
+  implements ticket products, SSLCommerz checkout and ride counts — there is no
+  balance to show. The wallet screens were adapted to tickets.
+
+Two of its colour pairings were changed rather than copied, both because they
+fail WCAG AA at the size they are used. White on `#1DB954` measures 2.59:1, so a
+darker green (`--accent-strong`) carries white text while the original stays for
+pills and indicators; and `--brand` lightens in dark mode because it doubles as a
+text colour, so surfaces that carry white text use `--band` / `--rail-active`
+instead, which stay deep navy. Every ratio in the CSS comments was measured in a
+browser.
+
+`backup/working-nextjs-apps` pins the pre-restyle state of these apps.
+
 Live data is **polled**, not pushed — the backend's `/ws/track/{route_id}` is not
 built yet, so the map refreshes on an interval. Swapping in a socket later
 touches only the map's data hook.
