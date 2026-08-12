@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 
 import type { components } from "@unitrack/api-client";
+import type { RouteShape } from "@unitrack/map";
+
+import { Card, CardContent } from "@/components/ui/card";
 
 import { SessionExpiredError, apiCall } from "../../../lib/api";
 import { FleetMap } from "./FleetMap";
@@ -19,8 +22,17 @@ export const dynamic = "force-dynamic";
  */
 export default async function FleetPage() {
   let fleet: Fleet;
+  let routes: RouteShape[] = [];
   try {
-    fleet = await apiCall((api) => api.GET("/admin/fleet"));
+    // Both at once: the two are independent, and awaiting them in sequence
+    // adds the slower one's latency to the faster one's for nothing.
+    [fleet, routes] = await Promise.all([
+      apiCall((api) => api.GET("/admin/fleet")),
+      // Route geometry is decoration on this screen, not the point of it. A
+      // failure here loses the lines and keeps the fleet, rather than 500ing
+      // the page an operator is watching an incident on.
+      apiCall<RouteShape[]>((api) => api.GET("/fleet/route-shapes", {})).catch(() => []),
+    ]);
   } catch (error) {
     if (error instanceof SessionExpiredError) redirect("/login");
     throw error;
@@ -29,10 +41,10 @@ export default async function FleetPage() {
   const quiet = fleet.stale + fleet.lost;
 
   return (
-    <>
-      <div className="page-head">
-        <h2>Live fleet</h2>
-        <p className="sub">
+    <main className="max-w-7xl p-4 md:p-7">
+      <div className="mb-5">
+        <h2 className="text-xl font-bold tracking-tight">Live fleet</h2>
+        <p className="text-muted-foreground">
           {fleet.total === 0
             ? "No trips are running."
             : quiet > 0
@@ -45,32 +57,39 @@ export default async function FleetPage() {
         </p>
       </div>
 
-      {/* Counts come from the API so every client agrees on them, and so "2
-          have gone quiet" is visible without reading the whole list. */}
-      <section className="stats">
-        <div className="stat">
-          <div className="label">On trip</div>
-          <div className="value">{fleet.total}</div>
-        </div>
-        <div className="stat">
-          <div className="label">Reporting</div>
-          <div className="value">{fleet.live}</div>
-        </div>
-        <div className="stat">
-          <div className="label">Gone quiet</div>
-          <div className={`value${fleet.stale > 0 ? " attention" : ""}`}>
-            {fleet.stale}
-          </div>
-        </div>
-        <div className="stat">
-          <div className="label">No signal</div>
-          <div className={`value${fleet.lost > 0 ? " attention" : ""}`}>
-            {fleet.lost}
-          </div>
-        </div>
+      {/* Counts come from the API so every client agrees on them, and so "2 have
+          gone quiet" is visible without reading the whole list. */}
+      <section className="mb-6 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+        <Stat label="On trip" value={fleet.total} />
+        <Stat label="Reporting" value={fleet.live} />
+        <Stat label="Gone quiet" value={fleet.stale} attention={fleet.stale > 0} />
+        <Stat label="No signal" value={fleet.lost} attention={fleet.lost > 0} />
       </section>
 
-      <FleetMap initial={fleet} />
-    </>
+      <FleetMap initial={fleet} routes={routes} />
+    </main>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  attention = false,
+}: {
+  label: string;
+  value: number;
+  attention?: boolean;
+}) {
+  return (
+    <Card className="rounded-2xl">
+      <CardContent className="px-6">
+        <div className="text-xs font-medium text-muted-foreground">{label}</div>
+        <div
+          className={`mt-0.5 text-2xl font-bold tracking-tight ${attention ? "text-warning" : ""}`}
+        >
+          {value}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

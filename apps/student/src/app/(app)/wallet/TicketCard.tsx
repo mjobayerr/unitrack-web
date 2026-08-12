@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 
 import type { components } from "@unitrack/api-client";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+
 type Ticket = components["schemas"]["TicketOut"];
 
 /// How often the displayed code is replaced.
@@ -37,8 +40,7 @@ const DATE_FORMAT = new Intl.DateTimeFormat("en-GB", {
 function expiryLabel(validTo: string): string {
   const parsed = new Date(validTo);
   // A malformed timestamp must not blank the card the student is trying to
-  // board with; falling back to the raw date part is worse than nothing only if
-  // it is missing entirely.
+  // board with.
   if (Number.isNaN(parsed.getTime())) return validTo.slice(0, 10);
   return DATE_FORMAT.format(parsed);
 }
@@ -47,26 +49,32 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
   const [showing, setShowing] = useState(false);
 
   return (
-    <div className="card">
-      <div className="row">
-        <div>
-          <strong>{ticket.rides_total === null ? "Unlimited pass" : "Ride ticket"}</strong>
-          <div className="meta">Valid to {expiryLabel(ticket.valid_to)}</div>
+    <Card className="mb-3 rounded-2xl">
+      <CardContent className="px-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <strong className="font-semibold">
+              {ticket.rides_total === null ? "Unlimited pass" : "Ride ticket"}
+            </strong>
+            <div className="text-[13px] text-muted-foreground">
+              Valid to {expiryLabel(ticket.valid_to)}
+            </div>
+          </div>
+          <div className="shrink-0 text-right text-2xl font-bold tracking-tight">
+            {ticket.rides_remaining === null ? "∞" : ticket.rides_remaining}
+            <span className="ml-1 text-[13px] font-normal text-muted-foreground">left</span>
+          </div>
         </div>
-        <div className="rides">
-          {ticket.rides_remaining === null ? "∞" : ticket.rides_remaining}
-          <span className="meta"> left</span>
-        </div>
-      </div>
 
-      {showing ? (
-        <BoardingCode ticketId={ticket.id} onHide={() => setShowing(false)} />
-      ) : (
-        <button type="button" onClick={() => setShowing(true)}>
-          Show boarding code
-        </button>
-      )}
-    </div>
+        {showing ? (
+          <BoardingCode ticketId={ticket.id} onHide={() => setShowing(false)} />
+        ) : (
+          <Button className="mt-3.5 min-h-[46px] w-full" onClick={() => setShowing(true)}>
+            Show boarding code
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -82,18 +90,20 @@ function BoardingCode({ ticketId, onHide }: { ticketId: string; onHide: () => vo
   }, []);
 
   return (
-    <div className="qr-wrap">
+    <div className="mt-3.5">
       {/* Always on white, whatever the page theme: a scanner reading a dark-mode
           QR off a dim phone in a moving bus is the failure nobody tests for. */}
-      <div className="qr">
+      <div className="grid place-items-center rounded-xl bg-white p-3">
         {/* eslint-disable-next-line @next/next/no-img-element -- next/image would
             cache and optimise a code that is only valid for 30 seconds. */}
-        <img src={`/api/qr/${ticketId}?t=${tick}`} alt="Boarding code" />
+        <img src={`/api/qr/${ticketId}?t=${tick}`} alt="Boarding code" className="w-full max-w-56" />
       </div>
-      <p className="meta center">Show this to the helper. It refreshes automatically.</p>
-      <button className="secondary" type="button" onClick={onHide}>
+      <p className="mt-2 text-center text-[13px] text-muted-foreground">
+        Show this to the helper. It refreshes automatically.
+      </p>
+      <Button variant="secondary" className="mt-2.5 min-h-[46px] w-full" onClick={onHide}>
         Hide
-      </button>
+      </Button>
     </div>
   );
 }

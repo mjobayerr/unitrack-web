@@ -1,0 +1,171 @@
+/* UniTrack tokens. Light values are the reference's own (Figma Make
+   T9doKPZ4oKNuJ2eyB5njfp). Dark is ours: the reference ships shadcn's untouched
+   default dark block and hardcodes its console's dark look in the markup, so
+   there was no dark palette to copy. Deviations are marked AA. */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  --font-size: 16px;
+  --radius: 0.75rem;
+
+  /* Reference brand colours, kept under their own names. */
+  --deep-blue: #1a3c8f;
+  --vibrant-green: #1db954;
+
+  --background: #f4f6fb;
+  --foreground: #1f2937;
+  --card: #ffffff;
+  --card-foreground: #1f2937;
+  --popover: #ffffff;
+  --popover-foreground: #1f2937;
+  --primary: #1a3c8f;
+  --primary-foreground: #ffffff;
+  --secondary: #e5e7eb;
+  --secondary-foreground: #1f2937;
+  --muted: #f3f4f6;
+  /* AA: reference #6b7280 is 4.24:1 on the canvas. */
+  --muted-foreground: #5b6472;
+  /* shadcn semantics: accent is the hover surface, not the brand green. The
+     reference overloads it as #1db954 with white text (2.59:1), which would
+     break every menu and dropdown hover state as well as failing AA. */
+  --accent: #f3f4f6;
+  --accent-foreground: #1f2937;
+  /* AA: reference #ef4444 under white text is 3.3:1. */
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #128038;
+  --success-foreground: #ffffff;
+  --warning: #b45309;
+  --warning-foreground: #ffffff;
+  --border: oklab(0 0 0 / 0.1);
+  --input: transparent;
+  --input-background: #ffffff;
+  --switch-background: #d1d5db;
+  --ring: #1a3c8f;
+
+  /* The console rail. Slate in both themes: it is chrome, not content. */
+  --sidebar: #1e293b;
+  --sidebar-foreground: #cbd5e1;
+  --sidebar-primary: #1a3c8f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #334155;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #3d4c63;
+  --sidebar-ring: #648ee4;
+
+  --chart-1: #1a3c8f;
+  --chart-2: #1db954;
+  --chart-3: #f59e0b;
+  --chart-4: #ef4444;
+  --chart-5: #6366f1;
+}
+
+[data-theme="dark"] {
+  --background: #0f172a;
+  --foreground: #e8ecf4;
+  --card: #1e293b;
+  --card-foreground: #e8ecf4;
+  --popover: #1e293b;
+  --popover-foreground: #e8ecf4;
+  /* AA: #1a3c8f as text on a #1e293b card is unreadable. 4.55:1 here. */
+  --primary: #648ee4;
+  --primary-foreground: #0b1220;
+  --secondary: #334155;
+  --secondary-foreground: #e8ecf4;
+  --muted: #1e293b;
+  --muted-foreground: #a3b0c2;
+  --accent: #334155;
+  --accent-foreground: #e8ecf4;
+  --destructive: #f87171;
+  --destructive-foreground: #1b0505;
+  --success: #34d97f;
+  --success-foreground: #04150a;
+  --warning: #fbbf24;
+  --warning-foreground: #291a00;
+  --border: oklab(1 0 0 / 0.12);
+  --input: #3d4c63;
+  --input-background: #1e293b;
+  --switch-background: #475569;
+  --ring: #648ee4;
+
+  --chart-1: #648ee4;
+  --chart-2: #34d97f;
+}
+
+@theme inline {
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-deep-blue: var(--deep-blue);
+  --color-vibrant-green: var(--vibrant-green);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  /* iOS Safari zooms the viewport on focus below 16px. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

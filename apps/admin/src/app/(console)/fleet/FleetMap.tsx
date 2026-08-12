@@ -1,9 +1,14 @@
 "use client";
 
+import { addRouteLayers, keepMapSized, routeBounds } from "@unitrack/map";
+import type { RouteShape } from "@unitrack/map";
 import maplibregl, { Map as MapLibreMap, Marker, Popup } from "maplibre-gl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { components } from "@unitrack/api-client";
+
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -35,6 +40,13 @@ const PIN_COLOUR: Record<FleetBus["freshness"], string> = {
   live: "#16a34a",
   stale: "#f59e0b",
   lost: "#9ca3af",
+};
+
+/** Same three states on the side list, so pin and card agree at a glance. */
+const FRESHNESS_BADGE: Record<FleetBus["freshness"], string> = {
+  live: "bg-success text-success-foreground",
+  stale: "bg-warning text-warning-foreground",
+  lost: "bg-secondary text-secondary-foreground",
 };
 
 function ageLabel(bus: FleetBus): string {
@@ -73,7 +85,7 @@ function escapeHtml(value: string): string {
   );
 }
 
-export function FleetMap({ initial }: { initial: Fleet }) {
+export function FleetMap({ initial, routes }: { initial: Fleet; routes: RouteShape[] }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   // Keyed by bus so a position update moves the existing pin rather than
@@ -99,17 +111,33 @@ export function FleetMap({ initial }: { initial: Fleet }) {
     // react-hooks warns about, and the warning is worth keeping on.
     const pins = markers.current;
 
-    map.current = new maplibregl.Map({
+    const instance = new maplibregl.Map({
       container: container.current,
       style: STYLE_URL,
       center: FALLBACK_CENTRE,
       zoom: 11,
       attributionControl: { compact: true },
     });
-    map.current.addControl(new maplibregl.NavigationControl(), "top-right");
+    map.current = instance;
+    instance.addControl(new maplibregl.NavigationControl(), "top-right");
+
+    // The routes the fleet is supposed to be running. An operator's job on this
+    // screen is spotting a bus that is not where it should be, and a pin on a
+    // bare street grid gives them nothing to judge that against.
+    addRouteLayers(instance, routes);
+    // The rail collapses above the map below 720px, so this container changes
+    // size on the same breakpoint the console is meant to be usable at.
+    const stopWatchingSize = keepMapSized(instance);
+
+    // Open on the network when no bus has a position yet — otherwise the first
+    // thing the console shows is empty streets, and the pins arrive off screen.
+    // `hasFitted` stays false so the first fleet response still frames the buses.
+    const bounds = routeBounds(routes);
+    if (bounds) instance.fitBounds(bounds, { padding: 64, maxZoom: 13, duration: 0 });
 
     return () => {
-      map.current?.remove();
+      stopWatchingSize();
+      instance.remove();
       map.current = null;
       // Removing the map destroys its markers, but this cache would still hold
       // the dead Marker objects. The pin effect looks each bus up by id, so a
@@ -117,7 +145,7 @@ export function FleetMap({ initial }: { initial: Fleet }) {
       pins.clear();
       hasFitted.current = false;
     };
-  }, []);
+  }, [routes]);
 
   // --- polling --------------------------------------------------------------
   useEffect(() => {
@@ -210,38 +238,49 @@ export function FleetMap({ initial }: { initial: Fleet }) {
   }, []);
 
   return (
-    <div className="fleet-layout">
-      <div className="fleet-map-wrap">
-        <div ref={container} className="fleet-map" />
-        {error ? <div className="fleet-map-error">{error}</div> : null}
+    <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[1fr_20rem]">
+      <div className="relative min-w-0 overflow-hidden rounded-2xl border border-border bg-card">
+        {/* Explicit height: MapLibre measures its container, and a grid child
+            with no height renders a zero-pixel canvas. */}
+        <div ref={container} className="h-[34rem] w-full" />
+        {error ? (
+          <div className="absolute inset-x-3 top-3 rounded-lg bg-warning/15 px-3 py-2 text-[13px] text-warning">
+            {error}
+          </div>
+        ) : null}
       </div>
 
-      <aside className="fleet-list" aria-label="Live buses">
+      <aside className="flex min-w-0 flex-col gap-2" aria-label="Live buses">
         {fleet.buses.length === 0 ? (
-          <p className="sub">
-            No trips are running. A bus appears here as soon as a helper starts a
-            trip.
+          <p className="text-muted-foreground">
+            No trips are running. A bus appears here as soon as a helper starts a trip.
           </p>
         ) : (
           fleet.buses.map((bus) => (
             <button
               key={bus.bus_id}
               type="button"
-              className={`fleet-card ${selected === bus.bus_id ? "is-selected" : ""}`}
               onClick={() => focus(bus)}
               disabled={bus.lat == null}
               title={bus.lat == null ? "No position to show on the map" : undefined}
+              className={cn(
+                "flex w-full min-w-0 flex-col gap-1 rounded-2xl border bg-card p-3 text-left",
+                "disabled:cursor-not-allowed disabled:opacity-60",
+                selected === bus.bus_id
+                  ? "border-primary ring-1 ring-primary"
+                  : "border-border hover:border-primary/40",
+              )}
             >
-              <span className="fleet-card-head">
-                <strong>{bus.reg_no}</strong>
-                <span className={`freshness freshness-${bus.freshness}`}>
-                  {bus.freshness === "live" ? "live" : bus.freshness}
-                </span>
+              <span className="flex items-center justify-between gap-2">
+                <strong className="truncate font-semibold">{bus.reg_no}</strong>
+                <Badge className={cn("shrink-0 uppercase", FRESHNESS_BADGE[bus.freshness])}>
+                  {bus.freshness}
+                </Badge>
               </span>
-              <span className="fleet-card-route">
+              <span className="truncate text-[13px]">
                 {bus.route_name} · {bus.route_direction}
               </span>
-              <span className="fleet-card-meta">
+              <span className="truncate text-xs text-muted-foreground">
                 {bus.helper_name} · {ageLabel(bus)}
                 {bus.occupied != null ? ` · ${bus.occupied}/${bus.capacity ?? "?"}` : ""}
               </span>
