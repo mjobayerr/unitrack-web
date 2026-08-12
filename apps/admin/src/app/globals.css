@@ -484,6 +484,14 @@ form.login button {
 @media (max-width: 720px) {
   .shell {
     grid-template-columns: 1fr;
+    /* The grid column is `1fr`, but a flex row of six nav links plus Sign out
+       has a min-content width larger than a phone screen, and `1fr` is
+       `minmax(auto, 1fr)` — the `auto` minimum lets the track grow past the
+       viewport rather than forcing the content to fit. Measured at 375px: the
+       sidebar came out 613px wide and the whole console scrolled sideways, on
+       every page. `min-width: 0` makes the track honour the viewport so the
+       wrapping below can do its job. */
+    min-width: 0;
   }
 
   .sidebar {
@@ -491,10 +499,23 @@ form.login button {
     align-items: center;
     gap: 0.75rem;
     padding: 0.6rem 0.9rem;
+    /* The row itself has to be allowed to break onto a second line. */
+    flex-wrap: wrap;
+    min-width: 0;
   }
 
   .nav-links {
     flex-direction: row;
+    /* Six destinations do not fit one phone-width line. Wrapping costs a second
+       row of chrome; not wrapping cost horizontal scrolling on every screen. */
+    flex-wrap: wrap;
+    gap: 0.35rem 0.5rem;
+    min-width: 0;
+  }
+
+  .nav-links a {
+    /* Comfortable to hit with a thumb — these were 35px tall. */
+    min-height: 40px;
   }
 
   .sidebar form {
@@ -509,6 +530,14 @@ form.login button {
   main,
   .topbar {
     padding: 1rem;
+  }
+
+  /* Wide content must scroll inside its own box, never take the page with it. */
+  main,
+  .topbar,
+  .card,
+  .stat-grid {
+    min-width: 0;
   }
 }
 

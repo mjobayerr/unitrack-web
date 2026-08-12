@@ -14,6 +14,35 @@ type Ticket = components["schemas"]["TicketOut"];
 /// and data for no extra safety.
 const REFRESH_MS = 10_000;
 
+/// The fleet's timezone, matching the backend's `SERVICE_TIMEZONE`.
+///
+/// Not the browser's: a student checking their wallet from abroad, or a phone
+/// with the wrong region set, must still see the date the ticket actually stops
+/// working in Dhaka.
+const SERVICE_TZ = "Asia/Dhaka";
+
+const DATE_FORMAT = new Intl.DateTimeFormat("en-GB", {
+  timeZone: SERVICE_TZ,
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+/// The expiry date as the student experiences it.
+///
+/// `valid_to.slice(0, 10)` was wrong, not just unpolished: the API sends UTC, and
+/// Dhaka is UTC+6. Anything expiring after 18:00 UTC therefore displayed a day
+/// *early* — a ticket good until midnight on the 13th read "Valid to
+/// 2026-08-12", so a student would believe it had run out while it still worked.
+function expiryLabel(validTo: string): string {
+  const parsed = new Date(validTo);
+  // A malformed timestamp must not blank the card the student is trying to
+  // board with; falling back to the raw date part is worse than nothing only if
+  // it is missing entirely.
+  if (Number.isNaN(parsed.getTime())) return validTo.slice(0, 10);
+  return DATE_FORMAT.format(parsed);
+}
+
 export function TicketCard({ ticket }: { ticket: Ticket }) {
   const [showing, setShowing] = useState(false);
 
@@ -22,7 +51,7 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
       <div className="row">
         <div>
           <strong>{ticket.rides_total === null ? "Unlimited pass" : "Ride ticket"}</strong>
-          <div className="meta">Valid to {ticket.valid_to.slice(0, 10)}</div>
+          <div className="meta">Valid to {expiryLabel(ticket.valid_to)}</div>
         </div>
         <div className="rides">
           {ticket.rides_remaining === null ? "∞" : ticket.rides_remaining}

@@ -36,7 +36,11 @@ export default async function FleetPage() {
           {fleet.total === 0
             ? "No trips are running."
             : quiet > 0
-              ? `${quiet} of ${fleet.total} bus${fleet.total === 1 ? "" : "es"} has stopped reporting.`
+              ? // The noun agrees with the total, the verb with the quiet count —
+                // they are different numbers, and pluralising only the noun read
+                // "2 of 2 buses has stopped reporting."
+                `${quiet} of ${fleet.total} bus${fleet.total === 1 ? "" : "es"}` +
+                ` ${quiet === 1 ? "has" : "have"} stopped reporting.`
               : `${fleet.total} bus${fleet.total === 1 ? "" : "es"} on trip, all reporting.`}
         </p>
       </div>

@@ -301,9 +301,19 @@ td .meta {
   color: #166534;
 }
 
-.tag-suspended {
+.tag-suspended,
+.tag-revoked {
   background: #fee2e2;
   color: #991b1b;
+}
+
+/* A used-up or out-of-date ticket is spent, not wrong. Without these it fell
+   through to the default pill, which is brand-tinted — the same treatment as an
+   active ticket, on the one list where telling them apart is the entire point. */
+.tag-exhausted,
+.tag-expired {
+  background: var(--border);
+  color: var(--muted);
 }
 
 .tag-critical {
@@ -439,12 +449,24 @@ label {
 
 input {
   font: inherit;
+  /* 16px is a hard requirement, not a preference. iOS Safari zooms the whole
+     page in whenever a focused input's font-size is below 16px, and it does not
+     zoom back out — so tapping Email on the login screen left every student
+     pinching to read the form they were halfway through. `font: inherit` above
+     was picking up the body's 14px.
+     Set on the font-size alone so the family and weight still come from the
+     page, and stated in px rather than rem because a user who has enlarged
+     their browser's default font must not be able to push this *below* the
+     threshold from the other direction. */
+  font-size: 16px;
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
   color: var(--text);
   width: 100%;
+  /* Same thumb minimum as the buttons. */
+  min-height: 44px;
 }
 
 input:focus {
@@ -547,6 +569,24 @@ form.login button {
   margin-bottom: 0.85rem;
 }
 
+/* Used on all three student screens and defined in neither stylesheet until now,
+   so it inherited `display: block`. Every card stacked instead of laying out: the
+   ride count sat under the ticket name rather than beside it, and on a past
+   ticket the status pill butted straight against the label with no gap at all
+   ("Ride ticketexhausted", measured touching at x=97).
+   `min-width: 0` on the first child so a long product name wraps instead of
+   pushing the price out of the card. */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.row > *:first-child {
+  min-width: 0;
+}
+
 .muted-card {
   opacity: 0.6;
 }
@@ -563,10 +603,19 @@ form.login button {
   font-weight: 500;
 }
 
-.card > button {
+/* `.card > form > button` is not a tidy-up — the Buy button lives inside a form
+   (the server action mints the idempotency key on submit), so `.card > button`
+   alone never matched it. The one button on the shop screen that takes money
+   rendered 51x35 in the corner of the card instead of the full-width 45px
+   control the wallet's button gets. On a phone that is both hard to hit and hard
+   to find. */
+.card > button,
+.card > form > button {
   width: 100%;
   margin-top: 0.85rem;
   padding: 0.7rem;
+  /* Comfortably past the 44px minimum for a thumb on a moving bus. */
+  min-height: 44px;
 }
 
 .center {
@@ -638,7 +687,19 @@ form.login button {
   height: 100%;
 }
 
-.map {
+/* Two classes, not one, and that is the whole fix.
+   maplibre-gl.css declares `.maplibregl-map { position: relative }` at the same
+   single-class specificity as a bare `.map` rule, and the component imports it —
+   so it loads *after* this file and won the tie on order. `position` reverted to
+   relative, `inset: 0` stopped stretching anything, and the container collapsed
+   to height 0. With `overflow: hidden` also coming from maplibre, the canvas was
+   clipped away completely: the live bus map rendered zero visible pixels on
+   every device, while the status pill above it kept working so the page did not
+   look broken. Measured in the browser as height 0 with elementFromPoint at the
+   map's centre returning `.map-wrap`.
+   The admin fleet map escaped this only because it sets an explicit `height`,
+   which `position` cannot undo. Same trap, same fix as the popup rule there. */
+.map-wrap .map {
   position: absolute;
   inset: 0;
 }
