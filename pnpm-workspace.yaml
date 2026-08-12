@@ -5,3 +5,7 @@ allowBuilds:
   # Next.js's image optimiser. Its install script compiles native binaries, so
   # without this it installs but cannot optimise images at runtime.
   sharp: true
+  # Native module resolver behind eslint-plugin-import-x, which eslint-config-next
+  # depends on. Without its build step ESLint cannot resolve imports and every
+  # import rule reports a false positive.
+  unrs-resolver: true

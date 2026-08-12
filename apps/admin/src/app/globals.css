@@ -688,3 +688,179 @@ button.linkish:hover:not(:disabled) {
   margin: 0.6rem 0;
   background: rgba(255, 255, 255, 0.14);
 }
+
+/* ---------- live fleet map (spec §10.2) ---------- */
+
+.fleet-layout {
+  display: grid;
+  /* Map takes the room; the list is a fixed reading column beside it. */
+  grid-template-columns: 1fr 300px;
+  gap: 1rem;
+  align-items: start;
+}
+
+/* One breakpoint, not a scale: below this the list beside a map leaves neither
+   enough width to be useful, so it stacks under it instead. */
+@media (max-width: 900px) {
+  .fleet-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fleet-map-wrap {
+  position: relative;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.fleet-map {
+  /* Tall enough to show a city-scale route without scrolling, capped by
+     viewport height so it never pushes the stat tiles off screen. */
+  height: min(68vh, 620px);
+  width: 100%;
+  background: var(--surface);
+}
+
+.fleet-map-error {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: var(--warn);
+  color: #1f2937;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fleet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  /* Matches the map so a long fleet scrolls inside the column rather than
+     stretching the page past it. */
+  max-height: min(68vh, 620px);
+  overflow-y: auto;
+}
+
+.fleet-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.fleet-card:hover:not(:disabled) {
+  border-color: var(--brand);
+}
+
+.fleet-card.is-selected {
+  border-left-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+/* A bus with no position cannot be centred on, so the card says so by being
+   unclickable rather than by moving the map nowhere. */
+.fleet-card:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.fleet-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.fleet-card-route {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.fleet-card-meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.freshness {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+}
+
+/* Tinted rather than solid: a status, not a button. Colours match the map pins
+   so the list and the map agree at a glance. */
+.freshness-live {
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+  color: var(--success);
+}
+
+.freshness-stale {
+  background: color-mix(in srgb, var(--warn) 20%, transparent);
+  color: var(--warn);
+}
+
+.freshness-lost {
+  background: color-mix(in srgb, var(--faint) 22%, transparent);
+  color: var(--faint);
+}
+
+/* MapLibre's popup defaults to a white card, which leaves white-on-white text
+   in dark mode.
+   Scoped under `.fleet-map` deliberately: maplibre-gl.css declares
+   `.maplibregl-popup-content { background: #fff }` at the same single-class
+   specificity, and it is imported by the component so it loads *after* this
+   file — an unscoped rule here loses the tie on order. Two classes wins
+   outright, whatever the order ends up being. */
+.fleet-map .maplibregl-popup-content {
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* The tip is a CSS triangle made of borders, so it needs the surface colour on
+   whichever edge faces the popup — otherwise a white arrow points at a dark
+   card. */
+.fleet-map .maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.fleet-map .maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.fleet-map .maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--surface);
+}
+
+.fleet-map .maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.fleet-map .maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.fleet-map .maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--surface);
+}
+
+.fleet-map .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--surface);
+}
+
+.fleet-map .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--surface);
+}
+
+/* The close button inherits a dark colour that vanishes on a dark surface. */
+.fleet-map .maplibregl-popup-close-button {
+  color: var(--muted);
+  font-size: 16px;
+}

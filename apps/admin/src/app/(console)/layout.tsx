@@ -42,6 +42,8 @@ export default async function ConsoleLayout({ children }: { children: ReactNode 
             occasionally. Products first in the second group — an empty
             catalogue means nobody can buy a ticket at all. */}
         <nav className="nav-links">
+          {/* First: it is the only page that shows what is happening right now. */}
+          <NavLink href="/fleet" label="Live fleet" />
           <NavLink href="/helpers" label="Helpers" count={pending} />
           <NavLink href="/alerts" label="Alerts" />
           <div className="nav-divider" role="presentation" />

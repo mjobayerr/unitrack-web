@@ -38,6 +38,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/resend-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Verification
+         * @description Send the confirmation link again.
+         *
+         *     Without this, one email lost to a spam filter is an account its owner can
+         *     never use and can never re-register, because the address is already taken.
+         *
+         *     Always answers 202, whatever is true of the address. Replying "no such
+         *     account" would turn this into a membership oracle for the whole university —
+         *     and an unauthenticated one, since anyone who has not verified cannot log in
+         *     to prove anything. An already-active account is also silently ignored rather
+         *     than confirmed; the same reasoning applies.
+         */
+        post: operations["resend_verification_auth_resend_verification_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/register/helper": {
         parameters: {
             query?: never;
@@ -228,6 +257,40 @@ export interface paths {
          *     stale snapshot instead, so a suspended account keeps its access.
          */
         post: operations["suspend_user_admin_users__user_id__suspend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/fleet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Live Fleet
+         * @description Every live trip with its latest known position.
+         *
+         *     Deliberately **not** built on `/track/nearby`. That endpoint answers "what
+         *     is close to this point", which needs an origin and a radius the console does
+         *     not have — an admin wants the whole fleet, including the bus parked at the
+         *     depot forty kilometres away.
+         *
+         *     One Postgres query for the live trips, then a single Redis pipeline for all
+         *     of their positions, seats and cached ETAs. Cost is a handful of round trips
+         *     regardless of fleet size, which is what makes a five-second console refresh
+         *     reasonable.
+         *
+         *     A bus with no position is still returned, flagged `lost`. Dropping it would
+         *     make a helper whose phone died look like a trip that was never running —
+         *     precisely the situation the console exists to surface.
+         */
+        get: operations["live_fleet_admin_fleet_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -766,12 +829,58 @@ export interface paths {
         };
         /**
          * Nearby Buses
-         * @description Buses with a recent fix within `radius_km`, closest first.
-         *
-         *     `collapse` on bus_id returns one hit per bus; the `_geo_distance` sort makes
-         *     that hit the closest point and exposes its distance.
+         * @description Buses whose latest fix is within `radius_km` and newer than
+         *     `NEARBY_FRESH_S`, closest first.
          */
         get: operations["nearby_buses_track_nearby_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/track/trips/{trip_id}/eta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Trip Eta
+         * @description Every remaining arrival for one live trip — what the fleet map draws.
+         */
+        get: operations["trip_eta_track_trips__trip_id__eta_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/track/stops/{stop_id}/arrivals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stop Arrivals
+         * @description The next buses reaching one stop, soonest first.
+         *
+         *     The question a student standing at a stop actually has, and the reason the
+         *     ETA engine exists. The live map answers "where is it", which is not the same
+         *     thing — a bus two kilometres away on an open road and one two kilometres
+         *     away in Farmgate traffic are twenty minutes apart.
+         *
+         *     Reads only Redis for the estimates themselves. Postgres is touched once, for
+         *     the names, because "4 min" is useless without knowing which route it is on.
+         */
+        get: operations["stop_arrivals_track_stops__stop_id__arrivals_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1129,6 +1238,75 @@ export interface components {
          * @enum {string}
          */
         AlertType: "sos" | "breakdown" | "traffic_delay" | "accident" | "harassment" | "overcrowding" | "off_route" | "over_speed" | "gps_blackout" | "other";
+        /**
+         * ArrivalOut
+         * @description One bus reaching one stop (spec §7.4).
+         */
+        ArrivalOut: {
+            /**
+             * Stop Id
+             * Format: uuid
+             */
+            stop_id: string;
+            /** Seq */
+            seq: number;
+            /**
+             * Eta
+             * Format: date-time
+             */
+            eta: string;
+            /** Eta Minutes */
+            eta_minutes: number;
+            /** Basis */
+            basis: string;
+            /** Distance Km */
+            distance_km: number;
+        };
+        /**
+         * BusArrivalOut
+         * @description An arrival at a stop, told from the stop's point of view.
+         *
+         *     Carries the bus and route because a student waiting at Farmgate needs to
+         *     know *which* bus is four minutes away — two routes serve most stops, and
+         *     only one of them is going where they are going.
+         */
+        BusArrivalOut: {
+            /**
+             * Stop Id
+             * Format: uuid
+             */
+            stop_id: string;
+            /** Seq */
+            seq: number;
+            /**
+             * Eta
+             * Format: date-time
+             */
+            eta: string;
+            /** Eta Minutes */
+            eta_minutes: number;
+            /** Basis */
+            basis: string;
+            /** Distance Km */
+            distance_km: number;
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
+            /**
+             * Route Id
+             * Format: uuid
+             */
+            route_id: string;
+            /** Route Name */
+            route_name: string;
+            /**
+             * Bus Id
+             * Format: uuid
+             */
+            bus_id: string;
+        };
         /** BusCreate */
         BusCreate: {
             /** Reg No */
@@ -1188,6 +1366,87 @@ export interface components {
             /** Checkout Url */
             checkout_url: string;
         };
+        /**
+         * FleetBusOut
+         * @description One live bus, as the admin fleet map draws it.
+         */
+        FleetBusOut: {
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
+            /**
+             * Bus Id
+             * Format: uuid
+             */
+            bus_id: string;
+            /** Reg No */
+            reg_no: string;
+            /** Nickname */
+            nickname: string | null;
+            /**
+             * Route Id
+             * Format: uuid
+             */
+            route_id: string;
+            /** Route Name */
+            route_name: string;
+            /** Route Direction */
+            route_direction: string;
+            /**
+             * Helper Id
+             * Format: uuid
+             */
+            helper_id: string;
+            /** Helper Name */
+            helper_name: string;
+            /** Started At */
+            started_at: string | null;
+            /** Lat */
+            lat?: number | null;
+            /** Lng */
+            lng?: number | null;
+            /** Heading */
+            heading?: number | null;
+            /** Speed Kmh */
+            speed_kmh?: number | null;
+            /** Fix Ts */
+            fix_ts?: string | null;
+            /** Fix Age S */
+            fix_age_s?: number | null;
+            freshness: components["schemas"]["GpsFreshness"];
+            /** Occupied */
+            occupied?: number | null;
+            /** Capacity */
+            capacity?: number | null;
+            /** Next Stop Eta Minutes */
+            next_stop_eta_minutes?: number | null;
+        };
+        /**
+         * FleetOut
+         * @description The whole live fleet in one response.
+         *
+         *     Counts are computed server-side so every client agrees on them, and so the
+         *     console can show "3 of 7 buses have gone quiet" without walking the list.
+         */
+        FleetOut: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Total */
+            total: number;
+            /** Live */
+            live: number;
+            /** Stale */
+            stale: number;
+            /** Lost */
+            lost: number;
+            /** Buses */
+            buses: components["schemas"]["FleetBusOut"][];
+        };
         /** GpsAccepted */
         GpsAccepted: {
             /** Accepted */
@@ -1213,6 +1472,16 @@ export interface components {
             /** Points */
             points: components["schemas"]["GpsPointIn"][];
         };
+        /**
+         * GpsFreshness
+         * @description How much to trust a bus's position (spec §10.2).
+         *
+         *     The distinction the console actually needs is not "when was the last fix"
+         *     but "is this pin worth believing". Three states rather than a raw age,
+         *     because that is what a colour on a map can express.
+         * @enum {string}
+         */
+        GpsFreshness: "live" | "stale" | "lost";
         /** GpsPointIn */
         GpsPointIn: {
             /** Lat */
@@ -1558,6 +1827,20 @@ export interface components {
             /** Refresh Token */
             refresh_token: string;
         };
+        /**
+         * ResendVerification
+         * @description Ask for the confirmation link again.
+         *
+         *     Only an address. The account cannot be logged into yet — that is the whole
+         *     problem it solves — so there is no session to authenticate this with.
+         */
+        ResendVerification: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
         /** RouteCreate */
         RouteCreate: {
             /** Name */
@@ -1706,6 +1989,26 @@ export interface components {
              */
             reported_at: string;
         };
+        /**
+         * StopArrivalsOut
+         * @description What a student standing at a stop actually asked.
+         */
+        StopArrivalsOut: {
+            /**
+             * Stop Id
+             * Format: uuid
+             */
+            stop_id: string;
+            /** Stop Name */
+            stop_name: string;
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /** Arrivals */
+            arrivals: components["schemas"]["BusArrivalOut"][];
+        };
         /** StopCreate */
         StopCreate: {
             /** Name */
@@ -1816,6 +2119,34 @@ export interface components {
             token_type: string;
             /** Expires In */
             expires_in: number;
+        };
+        /**
+         * TripEtaOut
+         * @description Every remaining arrival for one live trip — the admin fleet view.
+         */
+        TripEtaOut: {
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
+            /**
+             * Route Id
+             * Format: uuid
+             */
+            route_id: string;
+            /**
+             * Bus Id
+             * Format: uuid
+             */
+            bus_id: string;
+            /**
+             * Computed At
+             * Format: date-time
+             */
+            computed_at: string;
+            /** Arrivals */
+            arrivals: components["schemas"]["ArrivalOut"][];
         };
         /** TripOut */
         TripOut: {
@@ -1962,6 +2293,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resend_verification_auth_resend_verification_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResendVerification"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -2287,6 +2653,40 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    live_fleet_admin_fleet_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetOut"];
+                };
+            };
+            /** @description Missing, malformed or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated, but not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3307,6 +3707,70 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trip_eta_track_trips__trip_id__eta_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TripEtaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stop_arrivals_track_stops__stop_id__arrivals_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                stop_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StopArrivalsOut"];
                 };
             };
             /** @description Validation Error */
