@@ -25,6 +25,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/admin/package.json apps/admin/
 COPY apps/student/package.json apps/student/
 COPY packages/api-client/package.json packages/api-client/
+COPY packages/map/package.json packages/map/
+COPY packages/theme/package.json packages/theme/
 RUN pnpm install --frozen-lockfile
 
 
@@ -35,6 +37,8 @@ COPY --from=deps /repo/node_modules ./node_modules
 COPY --from=deps /repo/apps/admin/node_modules ./apps/admin/node_modules
 COPY --from=deps /repo/apps/student/node_modules ./apps/student/node_modules
 COPY --from=deps /repo/packages/api-client/node_modules ./packages/api-client/node_modules
+COPY --from=deps /repo/packages/map/node_modules ./packages/map/node_modules
+COPY --from=deps /repo/packages/theme/node_modules ./packages/theme/node_modules
 COPY . .
 # Fails loudly here rather than at runtime. A type error reaching a container is
 # a page that 500s for a real visitor.

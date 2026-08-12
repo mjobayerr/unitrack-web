@@ -59,6 +59,14 @@ export interface paths {
          *     and an unauthenticated one, since anyone who has not verified cannot log in
          *     to prove anything. An already-active account is also silently ignored rather
          *     than confirmed; the same reasoning applies.
+         *
+         *     Rate limited **per address**, which is the part nginx cannot do. Its limit is
+         *     per IP, so it slows one attacker down without stopping them: five a minute at
+         *     one inbox is three hundred an hour, and from a handful of IPs it is a mail
+         *     bomb sent by the university's own relay. The cooldown below is keyed on the
+         *     address, so the volume any single inbox can receive is fixed no matter how
+         *     many machines ask. A rejected resend still answers 202 — telling the caller
+         *     they were throttled would confirm the address is real.
          */
         post: operations["resend_verification_auth_resend_verification_post"];
         delete?: never;
@@ -184,7 +192,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Me */
+        /**
+         * Me
+         * @description The signed-in account plus the profile registration collected.
+         *
+         *     The student row is a second SELECT rather than an eager join because
+         *     `get_current_user` is shared by every authenticated route and most do not
+         *     need it — the cost belongs here, at the one endpoint that returns a profile.
+         *     Only students have a row; helpers and admins fall through with `student`
+         *     null.
+         */
         get: operations["me_auth_me_get"];
         put?: never;
         post?: never;
@@ -257,6 +274,38 @@ export interface paths {
          *     stale snapshot instead, so a suspended account keeps its access.
          */
         post: operations["suspend_user_admin_users__user_id__suspend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user_id}/reinstate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reinstate User
+         * @description Undo a suspension.
+         *
+         *     There was no way back. Suspension is one click and mistakes are ordinary —
+         *     a name confused for another, a complaint that turned out to be nothing — and
+         *     until this existed the only remedy was an UPDATE in psql on the production
+         *     database. A moderation action with no inverse is not a moderation action.
+         *
+         *     A helper is returned to `approved`, not to `pending`: they were approved once
+         *     and re-queueing them would lose that. `approved_by` still names the admin who
+         *     made the original decision, which is the audit trail worth keeping.
+         *
+         *     Only reverses a suspension. An account waiting on its email confirmation or
+         *     on a first approval is not something to skip past — the answer says which.
+         */
+        post: operations["reinstate_user_admin_users__user_id__reinstate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -367,7 +416,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Fleet Buses
+         * @description The whole fleet, retired and in-maintenance buses included.
+         *
+         *     `GET /fleet/buses` exists but defaults to active only — it is the helper's
+         *     bus picker, and a helper must not be offered a bus that is off the road. An
+         *     operator needs the opposite: the bus in the workshop is exactly the one they
+         *     are looking for.
+         */
+        get: operations["list_fleet_buses_admin_buses_get"];
         put?: never;
         /**
          * Create Bus
@@ -378,6 +436,36 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/admin/buses/{bus_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Bus
+         * @description Edit a bus — recapacity it, rename it, or take it off the road.
+         *
+         *     There is no DELETE, for the same reason routes and products have none:
+         *     `trips` reference buses with RESTRICT and every completed trip is history.
+         *     `status: inactive` is the removal and `maintenance` is the temporary version;
+         *     both take the bus out of the helper's picker, which defaults to active only,
+         *     while the past still resolves.
+         *
+         *     A live trip is left alone deliberately. Retiring a bus mid-route would strand
+         *     a helper whose app is posting fixes against it; the trip ends normally and the
+         *     bus is simply never offered again.
+         */
+        patch: operations["update_bus_admin_buses__bus_id__patch"];
         trace?: never;
     };
     "/admin/buses/list": {
@@ -630,6 +718,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/fleet/route-shapes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Route Shapes
+         * @description Every route with its ordered stops — one request, everything a map draws.
+         *
+         *     Both maps need the same thing on load: the corridor as a line and the stops
+         *     as points. Doing that through `/fleet/routes` then one `/fleet/routes/{id}`
+         *     per result is N+1 over HTTP, and on a phone those are N+1 *round trips* on a
+         *     mobile connection, with the line appearing a direction at a time.
+         *
+         *     Not a path segment under `/routes` on purpose: `/fleet/routes/{route_id}` is
+         *     typed `uuid.UUID`, so a sibling like `/fleet/routes/shapes` would be matched
+         *     by it first and answered with a 422 about a malformed UUID.
+         *
+         *     Deliberately outside the `RouteOut`/`RouteDetailOut` pairing rather than a
+         *     `?with_stops=` flag on the list endpoint: a query parameter that changes the
+         *     response *shape* cannot be expressed in one `response_model`, so the
+         *     generated client would type the stops as always-present or never.
+         */
+        get: operations["list_route_shapes_fleet_route_shapes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/fleet/routes/{route_id}": {
         parameters: {
             query?: never;
@@ -802,16 +924,26 @@ export interface paths {
          *     fix to the `gps_ingest` stream. The worker drains that stream into
          *     Elasticsearch.
          *
-         *     Trip binding
-         *     ------------
-         *     If the helper has a live trip, its id rides along on every fix and the
-         *     trip's bus wins over whatever the client sent — the server decides which bus
-         *     a helper is driving, not the phone.
+         *     Trip binding — and why a trip is now required
+         *     ---------------------------------------------
+         *     Every fix must belong to a trip this helper actually drove. A live trip binds
+         *     the batch and **the trip's bus wins over whatever the client sent** — the
+         *     server decides which bus a helper is driving, not the phone.
          *
-         *     Fixes with no live trip are still accepted, with an empty `trip_id`. That is
-         *     a **transition allowance** for the current helper build, which has no trip
-         *     UI yet; it is why `trip_id` is nullable downstream. Once the app ships trip
-         *     lifecycle, make this a 409 and delete this paragraph.
+         *     This used to accept fixes with no trip at all, as a transition allowance for
+         *     a helper build that had no trip UI. That build shipped, and the allowance was
+         *     a hole: any approved helper could put any bus anywhere on the live map and in
+         *     the fix history, for a bus they had never been near, just by naming its id.
+         *
+         *     The one case that is not spoofing is a **draining outbox**. The app stops the
+         *     sensor before ending a trip, but fixes already queued on the device upload
+         *     afterwards, and those belong to a real journey. So a batch with no live trip
+         *     is matched against this helper's just-ended trip *on that same bus*
+         *     (`recently_ended_trip`); anything else is a 409.
+         *
+         *     Late fixes are written to history but **not** to `bus:{id}:pos`, and nothing
+         *     is published to the fleet channel for them. Their trip is over; refreshing
+         *     the live position would put a finished bus back on the console's map.
          */
         post: operations["ingest_gps_helper_gps_post"];
         delete?: never;
@@ -1347,6 +1479,23 @@ export interface components {
          */
         BusStatus: "active" | "inactive" | "maintenance";
         /**
+         * BusUpdate
+         * @description A partial edit. Unset fields are left alone.
+         *
+         *     `status: inactive` is how a bus is removed and `maintenance` is the temporary
+         *     version — `trips` reference buses with RESTRICT, so a DELETE would either
+         *     fail or take a journey's history with it.
+         */
+        BusUpdate: {
+            /** Reg No */
+            reg_no?: string | null;
+            /** Nickname */
+            nickname?: string | null;
+            /** Capacity */
+            capacity?: number | null;
+            status?: components["schemas"]["BusStatus"] | null;
+        };
+        /**
          * CheckoutOut
          * @description Where to send the student to pay.
          */
@@ -1604,6 +1753,34 @@ export interface components {
             valid_to: string;
             status: components["schemas"]["TicketStatus"];
         };
+        /**
+         * MeOut
+         * @description The signed-in account, with everything registration captured.
+         *
+         *     A superset of `UserOut` — it adds `phone` and, for students, the nested
+         *     profile — so any client reading the old fields is unaffected. `student` is
+         *     null for non-students rather than the fields being absent, which keeps the
+         *     shape stable regardless of role.
+         */
+        MeOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Name */
+            name: string;
+            role: components["schemas"]["UserRole"];
+            status: components["schemas"]["UserStatus"];
+            /** Phone */
+            phone?: string | null;
+            student?: components["schemas"]["StudentProfileOut"] | null;
+        };
         /** OrderCreate */
         OrderCreate: {
             /**
@@ -1787,6 +1964,18 @@ export interface components {
         /**
          * RedemptionIn
          * @description One boarding a helper's device recorded, online or hours earlier.
+         *
+         *     `code` carries **no length constraint on purpose**, and removing the one it
+         *     used to have was a bug fix. Pydantic validates the whole body or none of it,
+         *     so a single unusable code — a row truncated in the device's SQLite outbox, or
+         *     a helper who scanned an unrelated poster QR — made the request 422 and took
+         *     every genuine boarding in the batch down with it. The device only drops a row
+         *     when it gets a per-item answer, so it never dropped the bad one: it resent
+         *     the same batch forever and no boarding behind it ever synced.
+         *
+         *     The endpoint's contract is one answer per item (see `sync_redemptions`), and
+         *     that can only hold if the length check happens there, per code, rather than
+         *     here for the batch. `CODE_MAX_LEN` is where it moved to.
          */
         RedemptionIn: {
             /** Code */
@@ -2048,6 +2237,20 @@ export interface components {
             /** Lng */
             lng?: number | null;
         };
+        /**
+         * StudentProfileOut
+         * @description The student-specific half of a profile, collected at registration.
+         *
+         *     Only present for student accounts; a helper or admin has no such row.
+         */
+        StudentProfileOut: {
+            /** Student Id No */
+            student_id_no: string;
+            /** Department */
+            department?: string | null;
+            /** Batch */
+            batch?: string | null;
+        };
         /** StudentRegister */
         StudentRegister: {
             /**
@@ -2229,6 +2432,20 @@ export interface components {
          * @enum {string}
          */
         UserStatus: "pending_email" | "active" | "pending_approval" | "suspended";
+        /**
+         * UserStatusOut
+         * @description The result of a moderation action, so the console can redraw without a
+         *     second round trip — and so a caller can see the helper row moved too.
+         */
+        UserStatusOut: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            user_status: components["schemas"]["UserStatus"];
+            helper_status?: components["schemas"]["HelperStatus"] | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -2517,7 +2734,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserOut"];
+                    "application/json": components["schemas"]["MeOut"];
                 };
             };
         };
@@ -2630,6 +2847,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Missing, malformed or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated, but not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reinstate_user_admin_users__user_id__reinstate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserStatusOut"];
+                };
             };
             /** @description Missing, malformed or expired access token */
             401: {
@@ -2831,6 +3093,52 @@ export interface operations {
             };
         };
     };
+    list_fleet_buses_admin_buses_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by state; omit for the whole fleet. */
+                bus_status?: components["schemas"]["BusStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusOut"][];
+                };
+            };
+            /** @description Missing, malformed or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated, but not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_bus_admin_buses_post: {
         parameters: {
             query?: never;
@@ -2846,6 +3154,55 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusOut"];
+                };
+            };
+            /** @description Missing, malformed or expired access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authenticated, but not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_bus_admin_buses__bus_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bus_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BusUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3448,6 +3805,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RouteOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_route_shapes_fleet_route_shapes_get: {
+        parameters: {
+            query?: {
+                only_active?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteDetailOut"][];
                 };
             };
             /** @description Validation Error */

@@ -1,0 +1,19 @@
+{
+  "name": "@unitrack/map",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "maplibre-gl": "^5.0.0"
+  },
+  "devDependencies": {
+    "maplibre-gl": "^5.0.0",
+    "typescript": "^5.7.2"
+  }
+}
