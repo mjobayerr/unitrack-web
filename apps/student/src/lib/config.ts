@@ -10,12 +10,17 @@
 export const API_BASE_URL: string =
   (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") || "/api";
 
-/** WebSocket origin for the live-tracking feed. Derived from the page origin so
- * the same proxy that carries `/api` carries `/api/ws` too. */
+/** WebSocket URL for the live-tracking feed. `path` is the backend path itself
+ * (e.g. `/ws/track/{id}?token=…`), NOT under the `/api` prefix: Vite's proxy
+ * does not apply its path rewrite to WebSocket upgrades, so the socket is
+ * proxied on its own `/ws` entry that forwards straight through. In production
+ * nginx proxies `/ws` to the API the same way. */
 export function apiWsUrl(path: string): string {
   if (API_BASE_URL.startsWith("http")) {
-    return API_BASE_URL.replace(/^http/, "ws") + path;
+    const u = new URL(API_BASE_URL);
+    const proto = u.protocol === "https:" ? "wss:" : "ws:";
+    return `${proto}//${u.host}${path}`;
   }
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${proto}//${window.location.host}${API_BASE_URL}${path}`;
+  return `${proto}//${window.location.host}${path}`;
 }

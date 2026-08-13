@@ -1,50 +1,88 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, CheckCircle, Wallet } from 'lucide-react';
-import { motion } from 'motion/react';
+import { ArrowLeft, Ticket, Loader2, ShieldCheck } from 'lucide-react';
+import QRCode from 'qrcode';
+import { apiCall, type components } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
+import { makeSigner, boardingCode, type BoardingSigner } from '../../lib/boarding';
 
-type Step = 'qr' | 'scanning' | 'confirmed';
+type TicketT = components['schemas']['TicketOut'];
+
+type State = 'loading' | 'ready' | 'none' | 'error';
 
 export function QRPayment() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>('qr');
+  const { user } = useAuth();
+  const [state, setState] = useState<State>('loading');
+  const [ticket, setTicket] = useState<TicketT | null>(null);
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const signerRef = useRef<BoardingSigner | null>(null);
 
-  const student = { name: 'Rafiul Islam', id: 'CSE-2021-0042', balance: 1240, fare: 15 };
+  // Load an active ticket and its Ed25519 signing material.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const tickets = await apiCall((api) => api.GET('/shop/tickets', {}));
+        const active = tickets.find((t) => t.status === 'active') ?? null;
+        if (!active) {
+          if (!cancelled) setState('none');
+          return;
+        }
+        const material = await apiCall((api) =>
+          api.GET('/shop/tickets/{ticket_id}/qr-material', {
+            params: { path: { ticket_id: active.id } },
+          }),
+        );
+        if (cancelled) return;
+        setTicket(active);
+        signerRef.current = makeSigner(material);
+        setState('ready');
+      } catch {
+        if (!cancelled) setState('error');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  if (step === 'confirmed') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 text-center">
-        <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring' }}>
-          <div className="w-28 h-28 bg-[#1DB954]/10 rounded-full flex items-center justify-center mb-6 mx-auto">
-            <CheckCircle className="w-14 h-14 text-[#1DB954]" />
-          </div>
-        </motion.div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Boarding Confirmed!</h2>
-        <p className="text-gray-500 mb-1">Fare deducted successfully</p>
-        <div className="bg-white rounded-2xl p-5 w-full max-w-xs shadow-sm border border-gray-100 my-6 space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Passenger</span>
-            <span className="text-gray-900 font-semibold">{student.name}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Student ID</span>
-            <span className="text-gray-900 font-semibold">{student.id}</span>
-          </div>
-          <div className="flex justify-between text-sm border-t border-gray-100 pt-3">
-            <span className="text-gray-500">Fare Deducted</span>
-            <span className="text-[#EF4444] font-bold">-৳{student.fare}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Remaining Balance</span>
-            <span className="text-[#1DB954] font-bold">৳{student.balance - student.fare}</span>
-          </div>
-        </div>
-        <button onClick={() => navigate('/')} className="w-full max-w-xs h-12 bg-[#1A3C8F] text-white rounded-2xl font-semibold">
-          Back to Home
-        </button>
-      </div>
-    );
-  }
+  // Rotate the code while a signer is loaded. Re-signs every 10 s — well inside
+  // the 30 s slice — so the QR on screen is always current and a screenshot
+  // goes stale.
+  useEffect(() => {
+    if (state !== 'ready') return;
+    let stopped = false;
+    async function render() {
+      const signer = signerRef.current;
+      if (!signer || Date.parse(signer.validTo) < Date.now()) return;
+      const code = boardingCode(signer);
+      try {
+        const url = await QRCode.toDataURL(code, {
+          margin: 1,
+          width: 240,
+          color: { dark: '#1A3C8F', light: '#ffffff' },
+        });
+        if (!stopped) setQrUrl(url);
+      } catch {
+        /* a render hiccup is not worth blanking a working code */
+      }
+    }
+    render();
+    const id = setInterval(render, 10_000);
+    return () => {
+      stopped = true;
+      clearInterval(id);
+    };
+  }, [state]);
+
+  const studentId = user?.student?.student_id_no ?? '';
+  const ridesLabel =
+    ticket == null
+      ? ''
+      : ticket.rides_remaining == null
+        ? 'Unlimited rides'
+        : `${ticket.rides_remaining} ride${ticket.rides_remaining === 1 ? '' : 's'} left`;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -64,72 +102,73 @@ export function QRPayment() {
         {/* QR Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex flex-col items-center">
-            {step === 'qr' ? (
+            {state === 'loading' && (
+              <div className="w-full aspect-square max-w-[220px] flex flex-col items-center justify-center gap-3 text-gray-400">
+                <Loader2 className="w-8 h-8 animate-spin" />
+                <p className="text-sm">Preparing your code…</p>
+              </div>
+            )}
+
+            {state === 'error' && (
+              <div className="w-full py-10 text-center text-gray-500 text-sm">
+                Couldn't load your boarding code. Try again in a moment.
+              </div>
+            )}
+
+            {state === 'none' && (
+              <div className="w-full py-8 flex flex-col items-center text-center gap-3">
+                <div className="w-14 h-14 rounded-full bg-[#1A3C8F]/8 flex items-center justify-center">
+                  <Ticket className="w-7 h-7 text-[#1A3C8F]" />
+                </div>
+                <p className="text-gray-900 font-semibold">No active ticket</p>
+                <p className="text-gray-500 text-sm">Buy a ticket to get a boarding code.</p>
+                <button
+                  onClick={() => navigate('/wallet')}
+                  className="mt-2 px-5 h-11 bg-[#1A3C8F] text-white rounded-xl font-semibold text-sm"
+                >
+                  Buy a Ticket
+                </button>
+              </div>
+            )}
+
+            {state === 'ready' && (
               <>
-                <div className="w-full aspect-square max-w-[220px] bg-gray-50 rounded-2xl flex items-center justify-center p-4 mb-4">
-                  <svg width="192" height="192" viewBox="0 0 200 200">
-                    <rect width="200" height="200" fill="white" />
-                    <rect x="10" y="10" width="50" height="50" fill="#1A3C8F" />
-                    <rect x="20" y="20" width="30" height="30" fill="white" />
-                    <rect x="25" y="25" width="20" height="20" fill="#1A3C8F" />
-                    <rect x="140" y="10" width="50" height="50" fill="#1A3C8F" />
-                    <rect x="150" y="20" width="30" height="30" fill="white" />
-                    <rect x="155" y="25" width="20" height="20" fill="#1A3C8F" />
-                    <rect x="10" y="140" width="50" height="50" fill="#1A3C8F" />
-                    <rect x="20" y="150" width="30" height="30" fill="white" />
-                    <rect x="25" y="155" width="20" height="20" fill="#1A3C8F" />
-                    {Array.from({ length: 13 }, (_, i) =>
-                      Array.from({ length: 13 }, (_, j) => {
-                        if ((i < 6 && j < 6) || (i < 6 && j > 7) || (i > 7 && j < 6)) return null;
-                        const fill = ((i * 3 + j * 7) % 5 === 0 || (i + j) % 4 === 0);
-                        return fill ? <rect key={`${i}-${j}`} x={15 + j * 13} y={15 + i * 13} width="10" height="10" fill="#1A3C8F" /> : null;
-                      })
-                    )}
-                  </svg>
+                <div className="w-full aspect-square max-w-[240px] bg-gray-50 rounded-2xl flex items-center justify-center p-3 mb-4">
+                  {qrUrl ? (
+                    <img src={qrUrl} alt="Boarding QR code" className="w-full h-full" />
+                  ) : (
+                    <Loader2 className="w-8 h-8 text-gray-300 animate-spin" />
+                  )}
                 </div>
                 <div className="text-center mb-4">
-                  <p className="text-gray-900 font-bold text-lg">{student.name}</p>
-                  <p className="text-gray-500 text-sm">{student.id}</p>
+                  <p className="text-gray-900 font-bold text-lg">{user?.name ?? 'Student'}</p>
+                  <p className="text-gray-500 text-sm">{studentId}</p>
                 </div>
-                <div className="w-full bg-[#1A3C8F]/5 rounded-xl p-3 flex justify-between items-center mb-4">
-                  <span className="text-gray-600 text-sm">Single Trip Fare</span>
-                  <span className="text-[#1A3C8F] font-bold text-lg">৳{student.fare}</span>
-                </div>
+                {ridesLabel && (
+                  <div className="w-full bg-[#1A3C8F]/5 rounded-xl p-3 flex justify-between items-center mb-4">
+                    <span className="text-gray-600 text-sm">Ticket</span>
+                    <span className="text-[#1A3C8F] font-bold text-sm">{ridesLabel}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 bg-[#1DB954]/8 rounded-xl px-4 py-2.5 w-full justify-center">
                   <div className="w-2 h-2 rounded-full bg-[#1DB954] animate-pulse" />
                   <span className="text-[#1DB954] text-sm font-semibold">QR Ready for Scanning</span>
                 </div>
               </>
-            ) : (
-              <div className="py-8 flex flex-col items-center gap-4">
-                <div className="w-16 h-16 rounded-full border-4 border-[#1A3C8F] border-t-transparent animate-spin" />
-                <p className="text-gray-700 font-semibold">Verifying payment...</p>
-              </div>
             )}
           </div>
         </div>
 
-        {/* Wallet Balance */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#1A3C8F]/8 flex items-center justify-center">
-            <Wallet className="w-5 h-5 text-[#1A3C8F]" />
+        {state === 'ready' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#1DB954]/10 flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5 text-[#1DB954]" />
+            </div>
+            <div className="flex-1">
+              <p className="text-gray-900 text-sm font-medium">Signed & rotating</p>
+              <p className="text-gray-400 text-xs">Refreshes every 30s — works offline, can't be screenshotted.</p>
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-gray-400 text-xs">Wallet Balance</p>
-            <p className="text-gray-900 font-bold">৳{student.balance.toLocaleString()}</p>
-          </div>
-          <button onClick={() => navigate('/wallet')} className="text-[#1A3C8F] text-xs font-semibold">
-            Top-Up
-          </button>
-        </div>
-
-        {step === 'qr' && (
-          <button
-            onClick={() => { setStep('scanning'); setTimeout(() => setStep('confirmed'), 1500); }}
-            className="w-full h-12 bg-[#1DB954] text-white rounded-2xl font-semibold text-base shadow-md shadow-[#1DB954]/20"
-          >
-            Simulate Scan (Demo)
-          </button>
         )}
       </div>
     </div>

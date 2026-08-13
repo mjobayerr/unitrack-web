@@ -45,8 +45,15 @@ export default defineConfig({
       '/api': {
         target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8000',
         changeOrigin: true,
-        ws: true,
         rewrite: (p) => p.replace(/^\/api/, ''),
+      },
+      // The live-tracking WebSocket. A separate entry with no rewrite because
+      // Vite does not apply `rewrite` to WebSocket upgrades — the backend path
+      // (/ws/track/{id}) is forwarded unchanged.
+      '/ws': {
+        target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8000',
+        changeOrigin: true,
+        ws: true,
       },
     },
   },
