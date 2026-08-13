@@ -6,16 +6,16 @@ export function StudentLayout() {
   const navigate = useNavigate();
 
   const navItems = [
-    { path: '/app', icon: Home, label: 'Home' },
-    { path: '/app/map', icon: Map, label: 'Track' },
-    { path: '/app/wallet', icon: Wallet, label: 'Wallet' },
-    { path: '/app/pay', icon: QrCode, label: 'QR Pay' },
-    { path: '/app/profile', icon: UserCircle, label: 'Profile' },
+    { path: '/', icon: Home, label: 'Home' },
+    { path: '/map', icon: Map, label: 'Track' },
+    { path: '/wallet', icon: Wallet, label: 'Wallet' },
+    { path: '/pay', icon: QrCode, label: 'QR Pay' },
+    { path: '/profile', icon: UserCircle, label: 'Profile' },
   ];
 
   const isActive = (path: string) => {
-    if (path === '/app') {
-      return location.pathname === '/app';
+    if (path === '/') {
+      return location.pathname === '/';
     }
     return location.pathname.startsWith(path);
   };

@@ -1,6 +1,5 @@
 import { createBrowserRouter } from "react-router";
 
-import { Splash } from "./screens/Splash";
 import { Login } from "./screens/Login";
 import { SignUp } from "./screens/SignUp";
 import { Verify } from "./screens/Verify";
@@ -14,15 +13,16 @@ import { QRPayment } from "./screens/QRPayment";
 import { TransactionHistory } from "./screens/TransactionHistory";
 import { Profile } from "./screens/Profile";
 
-// Student app only. Helper was removed entirely and admin now lives in its own
-// app (apps/admin); there are deliberately no links from here to either.
+// The dashboard is the app root. RequireAuth is the "middleware": a signed-out
+// visitor to "/" (or any tab under it) is redirected to /login; a signed-in one
+// on /login or /signup is bounced back to "/". There is no public splash — the
+// entry point is the dashboard or the login screen, nothing in between.
 export const router = createBrowserRouter([
-  { path: "/", Component: Splash },
   { path: "/login", element: <RedirectIfAuthed><Login /></RedirectIfAuthed> },
   { path: "/signup", element: <RedirectIfAuthed><SignUp /></RedirectIfAuthed> },
   { path: "/verify", Component: Verify },
   {
-    path: "/app",
+    path: "/",
     element: (
       <RequireAuth>
         <StudentLayout />

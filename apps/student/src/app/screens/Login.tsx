@@ -23,7 +23,7 @@ export function Login() {
     setSubmitting(true);
     try {
       await login(email.trim(), password);
-      navigate('/app', { replace: true });
+      navigate('/', { replace: true });
     } catch (err) {
       // The backend returns the same message for an unknown address and a wrong
       // password, and spends the same time on both, so we do too. 403 is the one

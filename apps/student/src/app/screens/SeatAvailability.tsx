@@ -193,7 +193,7 @@ export function SeatAvailability() {
 
         {/* Action Button */}
         <Button
-          onClick={() => navigate('/app/pay')}
+          onClick={() => navigate('/pay')}
           className="w-full bg-[#1A3C8F] hover:bg-[#152f6f] h-14 rounded-[12px]"
           size="lg"
         >

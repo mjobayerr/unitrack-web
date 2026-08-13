@@ -45,7 +45,7 @@ export function Home() {
             </div>
           </div>
           <button
-            onClick={() => navigate('/app/notifications')}
+            onClick={() => navigate('/notifications')}
             className="relative w-10 h-10 rounded-full bg-white/15 flex items-center justify-center"
           >
             <Bell className="w-5 h-5 text-white" />
@@ -60,7 +60,7 @@ export function Home() {
             <p className="text-white" style={{ fontSize: 22, fontWeight: 800 }}>৳1,240</p>
           </div>
           <button
-            onClick={() => navigate('/app/wallet')}
+            onClick={() => navigate('/wallet')}
             className="flex items-center gap-1.5 bg-[#1DB954] rounded-xl px-4 py-2"
           >
             <CreditCard className="w-4 h-4 text-white" />
@@ -122,7 +122,7 @@ export function Home() {
             {/* Actions */}
             <div className="flex gap-2 pt-1">
               <button
-                onClick={() => navigate('/app/map')}
+                onClick={() => navigate('/map')}
                 className="flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl bg-[#1A3C8F] text-white"
                 style={{ fontSize: 13, fontWeight: 600 }}
               >
@@ -130,7 +130,7 @@ export function Home() {
                 Track on Map
               </button>
               <button
-                onClick={() => navigate(`/app/seats/${activeBus.id}`)}
+                onClick={() => navigate(`/seats/${activeBus.id}`)}
                 className="flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border border-[#1A3C8F] text-[#1A3C8F]"
                 style={{ fontSize: 13, fontWeight: 600 }}
               >
@@ -145,7 +145,7 @@ export function Home() {
 
         {/* Next bus compact */}
         <button
-          onClick={() => navigate('/app/map')}
+          onClick={() => navigate('/map')}
           className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-3 flex items-center gap-3"
         >
           <div className="w-10 h-10 rounded-xl bg-[#F59E0B]/10 flex items-center justify-center shrink-0">
@@ -188,7 +188,7 @@ export function Home() {
           <div className="px-4 pt-4 pb-2 flex items-center justify-between">
             <p className="text-gray-900" style={{ fontSize: 14, fontWeight: 700 }}>Recent Trips</p>
             <button
-              onClick={() => navigate('/app/history')}
+              onClick={() => navigate('/history')}
               className="text-[#1A3C8F] flex items-center gap-0.5"
               style={{ fontSize: 12, fontWeight: 600 }}
             >

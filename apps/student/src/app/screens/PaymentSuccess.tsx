@@ -146,7 +146,7 @@ export function PaymentSuccess() {
           View Receipt
         </Button>
         <Button
-          onClick={() => navigate('/app')}
+          onClick={() => navigate('/')}
           className="w-full bg-[#1A3C8F] hover:bg-[#152f6f] rounded-[12px] h-12"
         >
           <Home className="w-5 h-5 mr-2" />

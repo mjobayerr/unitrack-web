@@ -99,7 +99,7 @@ export function LiveMap() {
       <div className="absolute top-0 left-0 right-0 p-4 z-10">
         <div className="flex items-center justify-between">
           <button
-            onClick={() => navigate('/app')}
+            onClick={() => navigate('/')}
             className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center"
           >
             <ArrowLeft className="w-5 h-5 text-gray-700" />
@@ -174,14 +174,14 @@ export function LiveMap() {
           {/* Action Buttons */}
           <div className="flex gap-3 pt-2">
             <Button
-              onClick={() => navigate(`/app/seats/${selectedBus.id}`)}
+              onClick={() => navigate(`/seats/${selectedBus.id}`)}
               variant="outline"
               className="flex-1 border-[#1A3C8F] text-[#1A3C8F] hover:bg-[#1A3C8F]/5 rounded-[12px] h-12"
             >
               View Seats
             </Button>
             <Button
-              onClick={() => navigate('/app/pay')}
+              onClick={() => navigate('/pay')}
               className="flex-1 bg-[#1A3C8F] hover:bg-[#152f6f] rounded-[12px] h-12"
             >
               Pay & Board

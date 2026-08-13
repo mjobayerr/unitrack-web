@@ -39,7 +39,7 @@ export function QRPayment() {
             <span className="text-[#1DB954] font-bold">৳{student.balance - student.fare}</span>
           </div>
         </div>
-        <button onClick={() => navigate('/app')} className="w-full max-w-xs h-12 bg-[#1A3C8F] text-white rounded-2xl font-semibold">
+        <button onClick={() => navigate('/')} className="w-full max-w-xs h-12 bg-[#1A3C8F] text-white rounded-2xl font-semibold">
           Back to Home
         </button>
       </div>
@@ -118,7 +118,7 @@ export function QRPayment() {
             <p className="text-gray-400 text-xs">Wallet Balance</p>
             <p className="text-gray-900 font-bold">৳{student.balance.toLocaleString()}</p>
           </div>
-          <button onClick={() => navigate('/app/wallet')} className="text-[#1A3C8F] text-xs font-semibold">
+          <button onClick={() => navigate('/wallet')} className="text-[#1A3C8F] text-xs font-semibold">
             Top-Up
           </button>
         </div>

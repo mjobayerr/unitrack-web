@@ -30,6 +30,6 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 export function RedirectIfAuthed({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   if (status === "loading") return <BootSplash />;
-  if (status === "authed") return <Navigate to="/app" replace />;
+  if (status === "authed") return <Navigate to="/" replace />;
   return <>{children}</>;
 }
