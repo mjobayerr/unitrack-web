@@ -1,5 +1,6 @@
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter } from "react-router";
 
+import { RequireAdmin, RedirectIfAuthed } from "../lib/guards";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { AdminLogin } from "./screens/admin/AdminLogin";
 import { AdminDashboard } from "./screens/admin/AdminDashboard";
@@ -14,16 +15,21 @@ import { EmergencyAlerts } from "./screens/admin/EmergencyAlerts";
 import { TripHistory } from "./screens/admin/TripHistory";
 import { BusHistory } from "./screens/admin/BusHistory";
 
-// Standalone admin app. The route tree keeps its "/admin" prefix so AdminLayout's
-// own navigation (which links to /admin/*) works unchanged; "/" just lands there.
+// The dashboard is the console root, behind RequireAdmin (the "middleware"): a
+// signed-out visitor to "/" or any panel is sent to /login; a signed-in admin on
+// /login is bounced to "/". Everything lives at the root now — the old "/admin"
+// prefix is gone.
 export const router = createBrowserRouter([
-  { path: "/", element: <Navigate to="/admin" replace /> },
+  { path: "/login", element: <RedirectIfAuthed><AdminLogin /></RedirectIfAuthed> },
   {
-    path: "/admin",
-    Component: AdminLayout,
+    path: "/",
+    element: (
+      <RequireAdmin>
+        <AdminLayout />
+      </RequireAdmin>
+    ),
     children: [
-      { index: true, Component: AdminLogin },
-      { path: "dashboard", Component: AdminDashboard },
+      { index: true, Component: AdminDashboard },
       { path: "monitoring", Component: LiveMonitoring },
       { path: "revenue", Component: RevenueDashboard },
       { path: "ridership", Component: RidershipDashboard },

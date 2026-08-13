@@ -1,29 +1,40 @@
 import { Outlet, useNavigate, useLocation } from "react-router";
 import { LayoutDashboard, Map, TrendingUp, Users, Bus, AlertOctagon, History, Wallet, Route, LogOut, Bell, MapPin } from "lucide-react";
+import { useAuth } from "../../lib/auth";
 
 const menu = [
-  { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
-  { name: "Live Monitoring", path: "/admin/monitoring", icon: Map },
-  { name: "Revenue", path: "/admin/revenue", icon: TrendingUp },
-  { name: "Ridership", path: "/admin/ridership", icon: Users },
-  { name: "Bus Management", path: "/admin/buses", icon: Bus },
-  { name: "GPS History", path: "/admin/history", icon: MapPin },
-  { name: "Route Management", path: "/admin/routes", icon: Route },
-  { name: "User Management", path: "/admin/users", icon: Users },
-  { name: "Wallet & Transactions", path: "/admin/wallet", icon: Wallet },
-  { name: "Emergency Alerts", path: "/admin/emergency", icon: AlertOctagon },
-  { name: "Trip History", path: "/admin/trips", icon: History },
+  { name: "Dashboard", path: "/", icon: LayoutDashboard },
+  { name: "Live Monitoring", path: "/monitoring", icon: Map },
+  { name: "Revenue", path: "/revenue", icon: TrendingUp },
+  { name: "Ridership", path: "/ridership", icon: Users },
+  { name: "Bus Management", path: "/buses", icon: Bus },
+  { name: "GPS History", path: "/history", icon: MapPin },
+  { name: "Route Management", path: "/routes", icon: Route },
+  { name: "User Management", path: "/users", icon: Users },
+  { name: "Wallet & Transactions", path: "/wallet", icon: Wallet },
+  { name: "Emergency Alerts", path: "/emergency", icon: AlertOctagon },
+  { name: "Trip History", path: "/trips", icon: History },
 ];
+
+// The dashboard sits at "/", so a startsWith test would light up every item.
+// Match "/" exactly and the rest by prefix.
+function isActive(pathname: string, path: string): boolean {
+  return path === "/" ? pathname === "/" : pathname.startsWith(path);
+}
 
 export function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
 
-  if (location.pathname === "/admin") {
-    return <Outlet />;
-  }
+  const currentPage = menu.find((m) => isActive(location.pathname, m.path));
 
-  const currentPage = menu.find(m => location.pathname.startsWith(m.path));
+  const handleSignOut = async () => {
+    await logout();
+    navigate("/login", { replace: true });
+  };
+
+  const avatar = (user?.name?.[0] ?? "A").toUpperCase();
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-slate-200 font-sans flex">
@@ -42,7 +53,7 @@ export function AdminLayout() {
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           <div className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 px-3 pt-2">Navigation</div>
           {menu.map((item) => {
-            const active = location.pathname.startsWith(item.path);
+            const active = isActive(location.pathname, item.path);
             return (
               <button
                 key={item.name}
@@ -62,7 +73,7 @@ export function AdminLayout() {
 
         <div className="p-3 border-t border-slate-800">
           <button
-            onClick={() => navigate("/admin")}
+            onClick={handleSignOut}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium text-sm"
           >
             <LogOut className="w-4 h-4 text-slate-500 shrink-0" />
@@ -80,7 +91,7 @@ export function AdminLayout() {
               <Bell className="w-4 h-4 text-slate-300" />
               <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-[#EF4444] rounded-full text-white text-[9px] font-bold flex items-center justify-center">2</span>
             </button>
-            <div className="w-8 h-8 rounded-full bg-[#1A3C8F] flex items-center justify-center text-white text-xs font-bold">A</div>
+            <div className="w-8 h-8 rounded-full bg-[#1A3C8F] flex items-center justify-center text-white text-xs font-bold">{avatar}</div>
           </div>
         </header>
 

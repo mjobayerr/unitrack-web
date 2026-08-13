@@ -1,12 +1,36 @@
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Bus, Lock, Mail } from "lucide-react";
+import { useAuth, NotAdminError } from "../../../lib/auth";
+import { ApiError } from "../../../lib/api";
 
 export function AdminLogin() {
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/admin/dashboard");
+    if (submitting) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login(email.trim(), password);
+      navigate("/", { replace: true });
+    } catch (err) {
+      if (err instanceof NotAdminError) {
+        setError("This account is not an administrator.");
+      } else if (err instanceof ApiError && err.status === 403) {
+        setError("This account is not active.");
+      } else {
+        setError("Incorrect email or password.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -29,6 +53,8 @@ export function AdminLogin() {
               </div>
               <input
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@unitrack.bd"
                 className="w-full bg-[#0F172A] border border-slate-700 text-white rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-colors"
                 required
@@ -43,12 +69,20 @@ export function AdminLogin() {
               </div>
               <input
                 type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full bg-[#0F172A] border border-slate-700 text-white rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-colors"
                 required
               />
             </div>
           </div>
+
+          {error && (
+            <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+              {error}
+            </p>
+          )}
 
           <div className="flex items-center justify-between text-sm">
             <label className="flex items-center gap-2 cursor-pointer">
@@ -60,9 +94,10 @@ export function AdminLogin() {
 
           <button
             type="submit"
-            className="w-full bg-[#1A3C8F] hover:bg-[#1e40af] text-white rounded-xl py-3 font-semibold transition-colors mt-4"
+            disabled={submitting}
+            className="w-full bg-[#1A3C8F] hover:bg-[#1e40af] text-white rounded-xl py-3 font-semibold transition-colors mt-4 disabled:opacity-60"
           >
-            Sign In to Console
+            {submitting ? "Signing in…" : "Sign In to Console"}
           </button>
         </form>
       </div>

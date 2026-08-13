@@ -92,7 +92,7 @@ export function AdminDashboard() {
                 </div>
               ))}
             </div>
-            <button onClick={() => navigate('/admin/emergency')} className="w-full mt-4 text-sm text-[#3B82F6] font-medium hover:text-white transition-colors">View All Alerts</button>
+            <button onClick={() => navigate('/emergency')} className="w-full mt-4 text-sm text-[#3B82F6] font-medium hover:text-white transition-colors">View All Alerts</button>
           </div>
 
           <div className="bg-[#1E293B] border border-slate-800 rounded-2xl p-6">
