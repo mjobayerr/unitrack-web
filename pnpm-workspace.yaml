@@ -2,8 +2,13 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
-  # Next.js's image optimiser. Its install script compiles native binaries, so
-  # without this it installs but cannot optimise images at runtime.
+  # Tailwind v4's native engine (student app, Vite) and Vite's bundler both ship
+  # platform binaries via an install script; without approval the student build
+  # cannot resolve them.
+  '@tailwindcss/oxide': true
+  esbuild: true
+  # Next.js's image optimiser (admin app). Its install script compiles native
+  # binaries, so without this it installs but cannot optimise images at runtime.
   sharp: true
   # Native module resolver behind eslint-plugin-import-x, which eslint-config-next
   # depends on. Without its build step ESLint cannot resolve imports and every
