@@ -33,4 +33,21 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+
+  server: {
+    port: 3001,
+    // Same-origin proxy to the FastAPI backend so the browser never makes a
+    // cross-origin request — no CORS to configure in dev, and the access token
+    // is sent to our own origin only. The client calls `/api/...`; this strips
+    // the prefix and forwards to the API. `ws: true` carries the live-tracking
+    // WebSocket (/api/ws/track/{route_id}). In production nginx does the same.
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8000',
+        changeOrigin: true,
+        ws: true,
+        rewrite: (p) => p.replace(/^\/api/, ''),
+      },
+    },
+  },
 })

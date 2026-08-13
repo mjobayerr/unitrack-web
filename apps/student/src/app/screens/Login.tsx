@@ -4,17 +4,38 @@ import { Bus, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { useAuth } from '../../lib/auth';
+import { ApiError } from '../../lib/api';
 
 export function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const [studentId, setStudentId] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock login - in real app would validate credentials
-    navigate('/app');
+    if (submitting) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login(email.trim(), password);
+      navigate('/app', { replace: true });
+    } catch (err) {
+      // The backend returns the same message for an unknown address and a wrong
+      // password, and spends the same time on both, so we do too. 403 is the one
+      // distinct case: the account exists but is not active yet.
+      setError(
+        err instanceof ApiError && err.status === 403
+          ? 'This account is not active. Check your email for the verification link.'
+          : 'Incorrect email or password.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -38,17 +59,18 @@ export function Login() {
           <h2 className="text-2xl text-gray-900 mb-6">Login to your account</h2>
 
           <form onSubmit={handleLogin} className="space-y-5">
-            {/* Student ID */}
+            {/* University Email */}
             <div className="space-y-2">
-              <Label htmlFor="studentId" className="text-gray-700">
-                Student ID
+              <Label htmlFor="email" className="text-gray-700">
+                University Email
               </Label>
               <Input
-                id="studentId"
-                type="text"
-                placeholder="e.g., 2021-1-60-123"
-                value={studentId}
-                onChange={(e) => setStudentId(e.target.value)}
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@ulab.edu.bd"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="h-12 bg-gray-50 border-gray-200 rounded-[12px] px-4"
               />
             </div>
@@ -91,13 +113,18 @@ export function Login() {
               </button>
             </div>
 
+            {error && (
+              <p className="text-sm text-[#EF4444] bg-red-50 rounded-[12px] px-4 py-3">{error}</p>
+            )}
+
             {/* Login Button */}
             <Button
               type="submit"
-              className="w-full bg-[#1A3C8F] hover:bg-[#152f6f] h-12 rounded-[12px]"
+              disabled={submitting}
+              className="w-full bg-[#1A3C8F] hover:bg-[#152f6f] h-12 rounded-[12px] disabled:opacity-60"
               size="lg"
             >
-              Login
+              {submitting ? 'Signing in…' : 'Login'}
             </Button>
             
             <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
@@ -131,7 +158,7 @@ export function Login() {
 
         {/* Help Text */}
         <p className="text-center text-sm text-gray-500 mt-6 px-4">
-          Use your university student ID and password to login
+          Use your university email and password to login
         </p>
       </div>
     </div>

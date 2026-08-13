@@ -2,6 +2,8 @@ import { createBrowserRouter } from "react-router";
 import { Splash } from "./screens/Splash";
 import { Login } from "./screens/Login";
 import { SignUp } from "./screens/SignUp";
+import { Verify } from "./screens/Verify";
+import { RequireAuth, RedirectIfAuthed } from "../lib/guards";
 
 import { StudentLayout } from "./layouts/StudentLayout";
 import { Home } from "./screens/Home";
@@ -38,12 +40,17 @@ import { BusHistory } from "./screens/admin/BusHistory";
 
 export const router = createBrowserRouter([
   { path: "/", Component: Splash },
-  { path: "/login", Component: Login },
-  { path: "/signup", Component: SignUp },
+  { path: "/login", element: <RedirectIfAuthed><Login /></RedirectIfAuthed> },
+  { path: "/signup", element: <RedirectIfAuthed><SignUp /></RedirectIfAuthed> },
+  { path: "/verify", Component: Verify },
 
   {
     path: "/app",
-    Component: StudentLayout,
+    element: (
+      <RequireAuth>
+        <StudentLayout />
+      </RequireAuth>
+    ),
     children: [
       { index: true, Component: Home },
       { path: "map", Component: LiveMap },
