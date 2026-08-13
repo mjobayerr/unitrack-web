@@ -126,23 +126,6 @@ export function Login() {
             >
               {submitting ? 'Signing in…' : 'Login'}
             </Button>
-            
-            <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={() => navigate('/helper')}
-                className="text-xs text-gray-500 hover:text-gray-900"
-              >
-                Helper Login
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/admin')}
-                className="text-xs text-gray-500 hover:text-gray-900"
-              >
-                Admin Login
-              </button>
-            </div>
           </form>
 
           {/* Additional Info */}
