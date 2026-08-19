@@ -4,114 +4,92 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import type { components } from '../../lib/api';
 
 type GpsPoint = components['schemas']['GpsPoint'];
+type LL = [number, number]; // [lng, lat]
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 const DHAKA: [number, number] = [90.4074, 23.7806];
 const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
 
-// --- path cleaning ---------------------------------------------------------
-// Raw GPS is jittery: it zig-zags around the true track, sits in a knot while a
-// bus idles at a signal, and jumps to a wild point on a bad fix. And a wide
-// window holds several trips, which must not be joined end-to-start. So the path
-// is split into segments at time/distance gaps and impossible-speed jumps, then
-// each segment is simplified (drop redundant jitter) and smoothed (round corners).
-
+// --- ordering --------------------------------------------------------------
+// Sort by time, drop stationary jitter and impossible-speed outliers, and break
+// the track into separate segments only on a real pause (parked between trips).
 const R = 6371000;
 const rad = Math.PI / 180;
-const GAP_SECONDS = 180; // >3 min between fixes = a new segment (likely a new trip)
-const GAP_METERS = 400; // a jump this far between consecutive fixes = a break
-const MAX_KMH = 120; // faster than this between two fixes = a GPS outlier
-const SIMPLIFY_M = 12; // Douglas-Peucker tolerance
-const CHAIKIN_ITERS = 2;
+const GAP_SECONDS = 600;
+const MAX_KMH = 130;
+const OUTLIER_M = 250;
 
-type XY = [number, number];
-
-function project(lng: number, lat: number, lat0: number): XY {
-  return [lng * rad * Math.cos(lat0 * rad) * R, lat * rad * R];
-}
-function unproject(x: number, y: number, lat0: number): [number, number] {
-  return [x / (Math.cos(lat0 * rad) * R) / rad, y / R / rad];
-}
-function dist(a: XY, b: XY): number {
-  return Math.hypot(a[0] - b[0], a[1] - b[1]);
-}
-function segDist(p: XY, a: XY, b: XY): number {
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  const len2 = dx * dx + dy * dy;
-  if (len2 === 0) return dist(p, a);
-  let t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2;
-  t = Math.max(0, Math.min(1, t));
-  return dist(p, [a[0] + t * dx, a[1] + t * dy]);
-}
-function simplify(pts: XY[], eps: number): XY[] {
-  if (pts.length < 3) return pts;
-  let maxD = 0;
-  let idx = 0;
-  const a = pts[0];
-  const b = pts[pts.length - 1];
-  for (let i = 1; i < pts.length - 1; i++) {
-    const d = segDist(pts[i], a, b);
-    if (d > maxD) {
-      maxD = d;
-      idx = i;
-    }
-  }
-  if (maxD > eps) {
-    const left = simplify(pts.slice(0, idx + 1), eps);
-    const right = simplify(pts.slice(idx), eps);
-    return left.slice(0, -1).concat(right);
-  }
-  return [a, b];
-}
-function chaikin(pts: XY[], iters: number): XY[] {
-  let out = pts;
-  for (let k = 0; k < iters && out.length >= 3; k++) {
-    const next: XY[] = [out[0]];
-    for (let i = 0; i < out.length - 1; i++) {
-      const [x1, y1] = out[i];
-      const [x2, y2] = out[i + 1];
-      next.push([0.75 * x1 + 0.25 * x2, 0.75 * y1 + 0.25 * y2]);
-      next.push([0.25 * x1 + 0.75 * x2, 0.25 * y1 + 0.75 * y2]);
-    }
-    next.push(out[out.length - 1]);
-    out = next;
-  }
-  return out;
+function meters(a: LL, b: LL): number {
+  const dLat = (b[1] - a[1]) * rad * R;
+  const dLng = (b[0] - a[0]) * rad * R * Math.cos(((a[1] + b[1]) / 2) * rad);
+  return Math.hypot(dLat, dLng);
 }
 
-/** Turn raw fixes into clean [lng,lat] segments. */
-function cleanSegments(path: GpsPoint[]): [number, number][][] {
+function orderedSegments(path: GpsPoint[]): LL[][] {
   const raw = path
     .filter((p) => p.latitude != null && p.longitude != null)
-    .map((p) => ({ t: new Date(p.timestamp).getTime() / 1000, lng: p.longitude, lat: p.latitude }))
+    .map((p) => ({ t: new Date(p.timestamp).getTime() / 1000, ll: [p.longitude, p.latitude] as LL }))
     .sort((a, b) => a.t - b.t);
   if (raw.length === 0) return [];
 
-  const lat0 = raw[0].lat;
-  const segments: { t: number; xy: XY }[][] = [[]];
-  let prev: { t: number; xy: XY } | null = null;
-
+  const segments: LL[][] = [[]];
+  let prev: { t: number; ll: LL } | null = null;
   for (const p of raw) {
-    const xy = project(p.lng, p.lat, lat0);
     if (prev) {
-      const d = dist(xy, prev.xy);
+      const d = meters(p.ll, prev.ll);
       const dt = Math.max(p.t - prev.t, 0.001);
-      const kmh = (d / dt) * 3.6;
-      if (d < 2) continue; // dedupe stationary jitter
-      if (dt > GAP_SECONDS || d > GAP_METERS || kmh > MAX_KMH) {
-        segments.push([]); // break the line
-      }
+      if (d < 3) continue; // stationary jitter
+      if ((d / dt) * 3.6 > MAX_KMH && d > OUTLIER_M) continue; // teleport outlier
+      if (dt > GAP_SECONDS) segments.push([]); // real pause = new segment
     }
-    const node = { t: p.t, xy };
-    segments[segments.length - 1].push(node);
-    prev = node;
+    segments[segments.length - 1].push(p.ll);
+    prev = p;
   }
+  return segments.filter((s) => s.length >= 2);
+}
 
-  return segments
-    .map((s) => s.map((n) => n.xy))
-    .filter((s) => s.length >= 2)
-    .map((s) => chaikin(simplify(s, SIMPLIFY_M), CHAIKIN_ITERS).map(([x, y]) => unproject(x, y, lat0)));
+// --- snap to roads (OSRM map matching) -------------------------------------
+// Straight lines between sparse fixes cut across buildings; matching pins the
+// trace to the actual road network. Free public OSRM, so it is best-effort — a
+// failed or rate-limited match falls back to the raw segment.
+const OSRM = 'https://router.project-osrm.org/match/v1/driving';
+const CHUNK = 90; // OSRM demo caps coordinates per request
+
+async function matchChunk(coords: LL[]): Promise<LL[] | null> {
+  if (coords.length < 2) return null;
+  const path = coords.map((c) => `${c[0].toFixed(6)},${c[1].toFixed(6)}`).join(';');
+  const radiuses = coords.map(() => 35).join(';');
+  try {
+    const res = await fetch(`${OSRM}/${path}?geometries=geojson&overview=full&tidy=true&radiuses=${radiuses}`);
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (d.code !== 'Ok' || !Array.isArray(d.matchings) || d.matchings.length === 0) return null;
+    const out: LL[] = [];
+    for (const m of d.matchings) {
+      if (m?.geometry?.coordinates) for (const c of m.geometry.coordinates) out.push(c as LL);
+    }
+    return out.length >= 2 ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+async function matchSegment(coords: LL[]): Promise<LL[]> {
+  if (coords.length <= CHUNK) return (await matchChunk(coords)) ?? coords;
+  const parts: LL[] = [];
+  for (let i = 0; i < coords.length; i += CHUNK - 1) {
+    const slice = coords.slice(i, i + CHUNK);
+    const matched = await matchChunk(slice);
+    parts.push(...(matched ?? slice));
+    if (i + CHUNK >= coords.length) break;
+  }
+  return parts;
+}
+
+function fc(segments: LL[][]): GeoJSON.FeatureCollection {
+  const lines = segments.filter((s) => s.length >= 2);
+  if (lines.length === 0) return empty;
+  return { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'MultiLineString', coordinates: lines }, properties: {} }] };
 }
 
 function dot(color: string): HTMLDivElement {
@@ -120,13 +98,14 @@ function dot(color: string): HTMLDivElement {
   return el;
 }
 
-/** Draws a bus's recorded GPS path as clean smoothed segments, with start
- * (green) and end (red) markers, framed to the whole track. */
+/** A bus's recorded path, snapped to the road network (OSRM). Draws the raw
+ * trace first, then upgrades to the matched geometry so roads are followed. */
 export function PathMap({ path, height = '30rem' }: { path: GpsPoint[]; height?: string }) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const readyRef = useRef(false);
   const endMarkers = useRef<maplibregl.Marker[]>([]);
+  const runId = useRef(0);
 
   useEffect(() => {
     if (!container.current || mapRef.current) return;
@@ -137,7 +116,7 @@ export function PathMap({ path, height = '30rem' }: { path: GpsPoint[]; height?:
       map.addLayer({ id: 'path-line', type: 'line', source: 'path', paint: { 'line-color': '#1A3C8F', 'line-width': 4, 'line-opacity': 0.85 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
       readyRef.current = true;
       map.resize();
-      draw();
+      render();
     });
     mapRef.current = map;
     const ro = new ResizeObserver(() => map.resize());
@@ -151,33 +130,43 @@ export function PathMap({ path, height = '30rem' }: { path: GpsPoint[]; height?:
     };
   }, []);
 
-  function draw() {
+  function drawSegments(segments: LL[][]) {
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
+    (map.getSource('path') as maplibregl.GeoJSONSource | undefined)?.setData(fc(segments));
     endMarkers.current.forEach((m) => m.remove());
     endMarkers.current = [];
-
-    const segments = cleanSegments(path);
-    (map.getSource('path') as maplibregl.GeoJSONSource | undefined)?.setData(
-      segments.length
-        ? { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'MultiLineString', coordinates: segments }, properties: {} }] }
-        : empty,
-    );
-    if (segments.length === 0) return;
-
-    const first = segments[0][0];
-    const lastSeg = segments[segments.length - 1];
+    const valid = segments.filter((s) => s.length >= 2);
+    if (valid.length === 0) return;
+    const first = valid[0][0];
+    const lastSeg = valid[valid.length - 1];
     const last = lastSeg[lastSeg.length - 1];
     endMarkers.current.push(new maplibregl.Marker({ element: dot('#22C55E') }).setLngLat(first).addTo(map));
     endMarkers.current.push(new maplibregl.Marker({ element: dot('#EF4444') }).setLngLat(last).addTo(map));
-
     const b = new maplibregl.LngLatBounds();
-    segments.forEach((s) => s.forEach((c) => b.extend(c)));
+    valid.forEach((s) => s.forEach((c) => b.extend(c)));
     map.fitBounds(b, { padding: 60, maxZoom: 16, duration: 500 });
   }
 
+  async function render() {
+    const map = mapRef.current;
+    if (!map || !readyRef.current) return;
+    const id = ++runId.current;
+    const raw = orderedSegments(path);
+    drawSegments(raw); // instant: raw trace
+    if (raw.length === 0) return;
+    // Snap each segment to roads, then redraw (best-effort, sequential to be
+    // gentle on the public service).
+    const matched: LL[][] = [];
+    for (const seg of raw) {
+      matched.push(await matchSegment(seg));
+      if (runId.current !== id) return; // a newer path superseded this run
+    }
+    if (runId.current === id) drawSegments(matched);
+  }
+
   useEffect(() => {
-    draw();
+    void render();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path]);
 
