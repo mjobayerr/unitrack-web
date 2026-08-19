@@ -9,9 +9,13 @@ function fmt(iso: string): string {
   return new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
+const dayStr = (d: Date) => d.toISOString().slice(0, 10);
+
 export function BusHistory() {
   const [buses, setBuses] = useState<BusT[]>([]);
   const [busId, setBusId] = useState('');
+  const [from, setFrom] = useState(dayStr(new Date(Date.now() - 7 * 86_400_000)));
+  const [to, setTo] = useState(dayStr(new Date()));
   const [history, setHistory] = useState<History | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,14 +30,24 @@ export function BusHistory() {
     setError(null);
     setHistory(null);
     try {
-      const h = await apiCall((api) => api.GET('/track/bus/{bus_id}/history', { params: { path: { bus_id: busId } } }));
+      const h = await apiCall((api) =>
+        api.GET('/track/bus/{bus_id}/history', {
+          params: {
+            path: { bus_id: busId },
+            // The endpoint requires an explicit window (ISO 8601). from is the
+            // start of the day, to the end of the day, so a single day is
+            // inclusive on both ends.
+            query: { from_timestamp: `${from}T00:00:00Z`, to_timestamp: `${to}T23:59:59Z` },
+          },
+        }),
+      );
       setHistory(h);
     } catch (e) {
       setError(e instanceof ApiError && e.detailMessage ? e.detailMessage : 'Could not load GPS history.');
     } finally {
       setLoading(false);
     }
-  }, [busId, loading]);
+  }, [busId, from, to, loading]);
 
   const busLabel = (b: BusT) => `${b.reg_no}${b.nickname ? ` · ${b.nickname}` : ''}`;
 
@@ -46,7 +60,7 @@ export function BusHistory() {
 
       <div className="bg-[#1E293B] border border-slate-800 rounded-2xl p-6">
         <div className="flex flex-col md:flex-row gap-4 md:items-end">
-          <div className="flex-1">
+          <div className="flex-1 min-w-[12rem]">
             <label className="text-slate-400 text-xs font-semibold uppercase mb-1.5 block">Bus</label>
             <select value={busId} onChange={(e) => setBusId(e.target.value)} className="w-full bg-[#0F172A] border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#3B82F6]">
               <option value="">Select a bus…</option>
@@ -54,6 +68,14 @@ export function BusHistory() {
                 <option key={b.id} value={b.id}>{busLabel(b)}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="text-slate-400 text-xs font-semibold uppercase mb-1.5 block">From</label>
+            <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="bg-[#0F172A] border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#3B82F6] [color-scheme:dark]" />
+          </div>
+          <div>
+            <label className="text-slate-400 text-xs font-semibold uppercase mb-1.5 block">To</label>
+            <input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className="bg-[#0F172A] border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#3B82F6] [color-scheme:dark]" />
           </div>
           <button onClick={load} disabled={!busId || loading} className="bg-[#1A3C8F] hover:bg-[#2952b3] text-white px-5 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50">{loading ? 'Loading…' : 'Load history'}</button>
         </div>
