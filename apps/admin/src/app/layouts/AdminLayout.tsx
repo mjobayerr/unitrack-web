@@ -1,19 +1,17 @@
 import { Outlet, useNavigate, useLocation } from "react-router";
-import { LayoutDashboard, Map, TrendingUp, Users, Bus, AlertOctagon, History, Wallet, Route, LogOut, Bell, MapPin } from "lucide-react";
+import { LayoutDashboard, Map, Users, Bus, AlertOctagon, Route, LogOut, Bell, MapPin } from "lucide-react";
 import { useAuth } from "../../lib/auth";
 
+// Only pages backed by a real endpoint. Revenue, ridership, wallet and trip
+// history were mock-only screens with no backend and have been removed.
 const menu = [
   { name: "Dashboard", path: "/", icon: LayoutDashboard },
   { name: "Live Monitoring", path: "/monitoring", icon: Map },
-  { name: "Revenue", path: "/revenue", icon: TrendingUp },
-  { name: "Ridership", path: "/ridership", icon: Users },
   { name: "Bus Management", path: "/buses", icon: Bus },
   { name: "GPS History", path: "/history", icon: MapPin },
   { name: "Route Management", path: "/routes", icon: Route },
-  { name: "User Management", path: "/users", icon: Users },
-  { name: "Wallet & Transactions", path: "/wallet", icon: Wallet },
+  { name: "Helpers", path: "/users", icon: Users },
   { name: "Emergency Alerts", path: "/emergency", icon: AlertOctagon },
-  { name: "Trip History", path: "/trips", icon: History },
 ];
 
 // The dashboard sits at "/", so a startsWith test would light up every item.

@@ -1,104 +1,138 @@
-import { useState } from 'react';
-import { AlertTriangle, CheckCircle, Clock, MapPin, Zap, Wrench, HeartPulse } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, CheckCircle, Clock, MapPin, Loader2, ShieldCheck } from 'lucide-react';
+import { apiCall, type components } from '../../../lib/api';
 
-const initialAlerts = [
-  { id: 'ALT-001', type: 'breakdown', bus: '106-E', route: 'Tongi ↔ Campus', helper: 'Hafiz Rahman', location: 'Tongi Bridge, Gazipur', message: 'Engine failure. Bus not operational.', time: '6 Jul, 8:12 AM', status: 'open' },
-  { id: 'ALT-002', type: 'traffic', bus: '104-B', route: 'Campus → Gazipur', helper: 'Karim Hossain', location: 'Joydebpur Chowrasta', message: 'Heavy traffic. Estimated 20 min delay.', time: '6 Jul, 7:48 AM', status: 'open' },
-  { id: 'ALT-003', type: 'medical', bus: '103-C', route: 'Dhanmondi ↔ Campus', helper: 'Jamal Hossain', location: 'Farmgate, Dhaka', message: 'Passenger unwell. Requires assistance.', time: '5 Jul, 9:05 AM', status: 'resolved' },
-  { id: 'ALT-004', type: 'breakdown', bus: '102-B', route: 'Uttara ↔ Campus', helper: 'Salam Khan', location: 'Abdullahpur, Uttara', message: 'Flat tire. Spare change underway.', time: '4 Jul, 8:30 AM', status: 'resolved' },
-  { id: 'ALT-005', type: 'traffic', bus: '101-A', route: 'Mirpur ↔ Campus', helper: 'Rahim Uddin', location: 'Mirpur-1, Dhaka', message: 'Road blocked. Taking alternate route.', time: '3 Jul, 7:55 AM', status: 'resolved' },
-];
+type Alert = components['schemas']['AlertOut'];
+type AlertStatus = components['schemas']['AlertStatus'];
+type AlertSeverity = components['schemas']['AlertSeverity'];
 
-const typeConfig = {
-  breakdown: { icon: Wrench, label: 'Breakdown', color: 'text-[#EF4444]', bg: 'bg-[#EF4444]/10', border: 'border-[#EF4444]/30' },
-  traffic: { icon: Clock, label: 'Traffic Delay', color: 'text-[#F59E0B]', bg: 'bg-[#F59E0B]/10', border: 'border-[#F59E0B]/30' },
-  medical: { icon: HeartPulse, label: 'Medical', color: 'text-[#8B5CF6]', bg: 'bg-[#8B5CF6]/10', border: 'border-[#8B5CF6]/30' },
+const SEVERITY: Record<AlertSeverity, string> = {
+  critical: 'text-[#EF4444] bg-[#EF4444]/10 border-[#EF4444]/30',
+  warning: 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30',
+  info: 'text-[#3B82F6] bg-[#3B82F6]/10 border-[#3B82F6]/30',
 };
 
+const STATUS_STYLE: Record<AlertStatus, string> = {
+  open: 'text-[#EF4444] bg-[#EF4444]/10',
+  acknowledged: 'text-[#F59E0B] bg-[#F59E0B]/10',
+  resolved: 'text-[#22C55E] bg-[#22C55E]/10',
+  dismissed: 'text-slate-400 bg-slate-700/40',
+};
+
+function when(iso: string): string {
+  return new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+type Filter = 'all' | 'open' | 'acknowledged' | 'resolved';
+
 export function EmergencyAlerts() {
-  const [alerts, setAlerts] = useState(initialAlerts);
-  const [filter, setFilter] = useState<'all' | 'open' | 'resolved'>('all');
+  const [alerts, setAlerts] = useState<Alert[] | null>(null);
+  const [filter, setFilter] = useState<Filter>('all');
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const resolve = (id: string) => {
-    setAlerts(prev => prev.map(a => a.id === id ? { ...a, status: 'resolved' } : a));
-  };
+  const load = useCallback(async () => {
+    try {
+      setAlerts(await apiCall((api) => api.GET('/admin/alerts', {})));
+    } catch {
+      setError('Could not load alerts.');
+      setAlerts([]);
+    }
+  }, []);
 
-  const open = alerts.filter(a => a.status === 'open').length;
-  const filtered = alerts.filter(a => filter === 'all' || a.status === filter);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function act(id: string, run: () => Promise<unknown>) {
+    if (busyId) return;
+    setBusyId(id);
+    setError(null);
+    try {
+      await run();
+      await load();
+    } catch {
+      setError('Action failed. Try again.');
+    } finally {
+      setBusyId(null);
+    }
+  }
+  const acknowledge = (a: Alert) => act(a.id, () => apiCall((api) => api.POST('/admin/alerts/{alert_id}/acknowledge', { params: { path: { alert_id: a.id } } })));
+  const resolve = (a: Alert) => act(a.id, () => apiCall((api) => api.POST('/admin/alerts/{alert_id}/resolve', { params: { path: { alert_id: a.id } } })));
+
+  const list = alerts ?? [];
+  const open = list.filter((a) => a.status === 'open').length;
+  const resolved = list.filter((a) => a.status === 'resolved').length;
+  const filtered = useMemo(() => list.filter((a) => filter === 'all' || a.status === filter), [list, filter]);
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Open Alerts', value: open, color: 'text-[#EF4444]', icon: AlertTriangle },
-          { label: 'Resolved Today', value: alerts.filter(a => a.status === 'resolved').length, color: 'text-[#22C55E]', icon: CheckCircle },
-          { label: 'Total Alerts', value: alerts.length, color: 'text-[#F59E0B]', icon: Zap },
-        ].map(k => (
+          { label: 'Open', value: open, color: 'text-[#EF4444]', icon: AlertTriangle },
+          { label: 'Resolved', value: resolved, color: 'text-[#22C55E]', icon: CheckCircle },
+          { label: 'Total', value: list.length, color: 'text-[#F59E0B]', icon: Clock },
+        ].map((k) => (
           <div key={k.label} className="bg-[#1E293B] border border-slate-800 rounded-2xl p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center shrink-0">
-              <k.icon className={`w-6 h-6 ${k.color}`} />
-            </div>
+            <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center shrink-0"><k.icon className={`w-6 h-6 ${k.color}`} /></div>
             <div>
+              <p className="text-white text-2xl font-bold">{alerts ? k.value : '—'}</p>
               <p className="text-slate-400 text-sm">{k.label}</p>
-              <p className={`text-3xl font-bold ${k.color}`}>{k.value}</p>
             </div>
           </div>
         ))}
       </div>
 
       <div className="flex gap-2">
-        {(['all', 'open', 'resolved'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-colors ${filter === f ? 'bg-[#1A3C8F] text-white' : 'bg-[#1E293B] text-slate-400 hover:text-white border border-slate-800'}`}>
-            {f}
-          </button>
+        {(['all', 'open', 'acknowledged', 'resolved'] as Filter[]).map((f) => (
+          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded-lg text-sm font-semibold capitalize transition-colors ${filter === f ? 'bg-[#1A3C8F] text-white' : 'bg-[#1E293B] text-slate-400 hover:text-white'}`}>{f}</button>
         ))}
       </div>
 
-      <div className="space-y-3">
-        {filtered.map(alert => {
-          const cfg = typeConfig[alert.type as keyof typeof typeConfig];
-          const Icon = cfg.icon;
-          return (
-            <div key={alert.id} className={`bg-[#1E293B] border rounded-2xl p-5 ${alert.status === 'open' ? cfg.border : 'border-slate-800'}`}>
-              <div className="flex items-start gap-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${cfg.bg}`}>
-                  <Icon className={`w-6 h-6 ${cfg.color}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>
-                    <span className="text-white font-semibold text-sm">Bus {alert.bus}</span>
-                    <span className="text-slate-500 text-xs">{alert.id}</span>
+      {error && <p className="text-[#EF4444] text-sm">{error}</p>}
+
+      {alerts === null ? (
+        <div className="bg-[#1E293B] border border-slate-800 rounded-2xl px-6 py-16 flex items-center justify-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading alerts…</div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-[#1E293B] border border-slate-800 rounded-2xl px-6 py-16 text-center text-slate-400"><ShieldCheck className="w-8 h-8 mx-auto mb-2 text-slate-600" />No {filter === 'all' ? '' : filter} alerts.</div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((a) => (
+            <div key={a.id} className={`bg-[#1E293B] border rounded-2xl p-5 ${a.status === 'open' ? SEVERITY[a.severity].split(' ').pop() : 'border-slate-800'}`}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border capitalize ${SEVERITY[a.severity]}`}>{a.type.replace(/_/g, ' ')}</span>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${STATUS_STYLE[a.status]}`}>{a.status}</span>
+                    <span className="text-slate-500 text-xs capitalize">from {a.source}</span>
                   </div>
-                  <p className="text-slate-200 text-sm font-medium">{alert.message}</p>
-                  <div className="flex items-center gap-4 mt-2 flex-wrap">
-                    <span className="text-slate-400 text-xs flex items-center gap-1">
-                      <MapPin className="w-3 h-3" /> {alert.location}
-                    </span>
-                    <span className="text-slate-400 text-xs flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {alert.time}
-                    </span>
-                    <span className="text-slate-500 text-xs">Helper: {alert.helper}</span>
+                  {a.message && <p className="text-slate-200 text-sm mt-2">{a.message}</p>}
+                  <div className="flex items-center gap-4 mt-2 text-slate-400 text-xs">
+                    <span>{when(a.created_at)}</span>
+                    {a.lat != null && a.lng != null && (
+                      <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{a.lat.toFixed(4)}, {a.lng.toFixed(4)}</span>
+                    )}
                   </div>
                 </div>
-                <div className="shrink-0 flex flex-col items-end gap-2">
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${alert.status === 'open' ? 'bg-[#EF4444]/10 text-[#EF4444]' : 'bg-[#22C55E]/10 text-[#22C55E]'}`}>
-                    {alert.status === 'open' ? 'Open' : 'Resolved'}
-                  </span>
-                  {alert.status === 'open' && (
-                    <button onClick={() => resolve(alert.id)} className="text-xs font-semibold text-[#3B82F6] hover:text-white transition-colors bg-[#3B82F6]/10 hover:bg-[#3B82F6]/20 px-3 py-1.5 rounded-lg">
-                      Mark Resolved
-                    </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  {busyId === a.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                  ) : (
+                    <>
+                      {a.status === 'open' && (
+                        <button onClick={() => acknowledge(a)} className="text-[#F59E0B] hover:text-white text-xs font-semibold">Acknowledge</button>
+                      )}
+                      {(a.status === 'open' || a.status === 'acknowledged') && (
+                        <button onClick={() => resolve(a)} className="text-[#22C55E] hover:text-white text-xs font-semibold">Resolve</button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
             </div>
-          );
-        })}
-        {filtered.length === 0 && (
-          <div className="text-center py-12 text-slate-500">No {filter === 'all' ? '' : filter} alerts found.</div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

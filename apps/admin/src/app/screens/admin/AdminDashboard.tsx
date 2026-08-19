@@ -1,29 +1,70 @@
-import { Users, Bus, DollarSign, Activity, AlertTriangle, TrendingUp } from "lucide-react";
-import { useNavigate } from "react-router";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { Bus, Activity, Route as RouteIcon, UserCheck, AlertTriangle, Loader2 } from 'lucide-react';
+import { apiCall, type components } from '../../../lib/api';
 
-const revenueData = [
-  { name: 'Mon', total: 4000 },
-  { name: 'Tue', total: 3000 },
-  { name: 'Wed', total: 5000 },
-  { name: 'Thu', total: 2780 },
-  { name: 'Fri', total: 6890 },
-  { name: 'Sat', total: 2390 },
-  { name: 'Sun', total: 3490 },
-];
+type Fleet = components['schemas']['FleetOut'];
+type BusT = components['schemas']['BusOut'];
+type RouteT = components['schemas']['RouteOut'];
+type Helper = components['schemas']['HelperOut'];
+type Alert = components['schemas']['AlertOut'];
+
+function timeAgo(iso: string): string {
+  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
 
 export function AdminDashboard() {
   const navigate = useNavigate();
+  const [fleet, setFleet] = useState<Fleet | null>(null);
+  const [buses, setBuses] = useState<BusT[]>([]);
+  const [routes, setRoutes] = useState<RouteT[]>([]);
+  const [helpers, setHelpers] = useState<Helper[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const [f, b, r, h, a] = await Promise.all([
+        apiCall((api) => api.GET('/admin/fleet', {})).catch(() => null),
+        apiCall((api) => api.GET('/admin/buses', {})).catch(() => [] as BusT[]),
+        apiCall((api) => api.GET('/fleet/routes', { params: { query: { only_active: false } } })).catch(() => [] as RouteT[]),
+        apiCall((api) => api.GET('/admin/helpers', {})).catch(() => [] as Helper[]),
+        apiCall((api) => api.GET('/admin/alerts', {})).catch(() => [] as Alert[]),
+      ]);
+      if (cancelled) return;
+      setFleet(f);
+      setBuses(b);
+      setRoutes(r);
+      setHelpers(h);
+      setAlerts(a);
+      setLoaded(true);
+    };
+    void load();
+    const id = window.setInterval(load, 20_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, []);
+
+  const pending = helpers.filter((h) => h.helper_status === 'pending').length;
+  const activeBuses = buses.filter((b) => b.status === 'active').length;
+  const openAlerts = alerts.filter((a) => a.status === 'open');
+
   const stats = [
-    { name: "Active Buses", value: "18", icon: Bus, color: "text-[#3B82F6]", bg: "bg-[#3B82F6]/10" },
-    { name: "Today's Revenue", value: "৳45,200", icon: DollarSign, color: "text-[#F59E0B]", bg: "bg-[#F59E0B]/10" },
-    { name: "Active Trips", value: "6", icon: Activity, color: "text-[#22C55E]", bg: "bg-[#22C55E]/10" },
-    { name: "Total Students", value: "12,450", icon: Users, color: "text-[#8B5CF6]", bg: "bg-[#8B5CF6]/10" },
+    { name: 'Live buses now', value: fleet ? String(fleet.live) : '—', icon: Activity, color: 'text-[#22C55E]', bg: 'bg-[#22C55E]/10' },
+    { name: 'Active buses', value: loaded ? String(activeBuses) : '—', icon: Bus, color: 'text-[#3B82F6]', bg: 'bg-[#3B82F6]/10' },
+    { name: 'Routes', value: loaded ? String(routes.length) : '—', icon: RouteIcon, color: 'text-[#8B5CF6]', bg: 'bg-[#8B5CF6]/10' },
+    { name: 'Helpers awaiting approval', value: loaded ? String(pending) : '—', icon: UserCheck, color: 'text-[#F59E0B]', bg: 'bg-[#F59E0B]/10' },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => (
           <div key={stat.name} className="bg-[#1E293B] border border-slate-800 rounded-2xl p-6 flex items-center justify-between">
@@ -39,82 +80,60 @@ export function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Chart */}
+        {/* Live fleet */}
         <div className="lg:col-span-2 bg-[#1E293B] border border-slate-800 rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-white font-semibold">Revenue Overview</h3>
-            <select className="bg-[#0F172A] border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#3B82F6]">
-              <option>This Week</option>
-              <option>This Month</option>
-            </select>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white font-semibold">Live fleet</h3>
+            <button onClick={() => navigate('/monitoring')} className="text-sm text-[#3B82F6] font-medium hover:text-white">Open monitoring</button>
           </div>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs key="gradient-defs">
-                  <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid key="grid" strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                <XAxis key="x-axis" dataKey="name" stroke="#94A3B8" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis key="y-axis" stroke="#94A3B8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `৳${value}`} />
-                <Tooltip 
-                  key="tooltip"
-                  contentStyle={{ backgroundColor: '#0F172A', borderColor: '#1E293B', borderRadius: '8px' }}
-                  itemStyle={{ color: '#E2E8F0' }}
-                />
-                <Area key="area" type="monotone" dataKey="total" stroke="#3B82F6" strokeWidth={2} fillOpacity={1} fill="url(#colorTotal)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {!fleet ? (
+            <div className="py-12 flex items-center justify-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading…</div>
+          ) : fleet.buses.length === 0 ? (
+            <p className="py-12 text-center text-slate-400">No trips running right now.</p>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex gap-4 text-sm mb-2">
+                <span className="text-[#22C55E]">{fleet.live} live</span>
+                <span className="text-[#F59E0B]">{fleet.stale} stale</span>
+                <span className="text-slate-400">{fleet.lost} lost</span>
+              </div>
+              {fleet.buses.slice(0, 6).map((b) => (
+                <div key={b.trip_id} className="flex items-center justify-between py-2 border-b border-slate-800 last:border-0">
+                  <div>
+                    <p className="text-white text-sm font-medium">{b.nickname || b.reg_no}</p>
+                    <p className="text-slate-400 text-xs">{b.route_name} · {b.route_direction} · {b.helper_name}</p>
+                  </div>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${b.freshness === 'live' ? 'text-[#22C55E] bg-[#22C55E]/10' : b.freshness === 'stale' ? 'text-[#F59E0B] bg-[#F59E0B]/10' : 'text-slate-400 bg-slate-700/40'}`}>{b.freshness}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Alerts & Quick Actions */}
-        <div className="space-y-6">
-          <div className="bg-[#1E293B] border border-slate-800 rounded-2xl p-6">
-            <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-[#F59E0B]" />
-              Active Alerts
-            </h3>
+        {/* Open alerts */}
+        <div className="bg-[#1E293B] border border-slate-800 rounded-2xl p-6">
+          <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-[#F59E0B]" />
+            Open alerts {openAlerts.length > 0 && <span className="text-[#F59E0B] text-sm">({openAlerts.length})</span>}
+          </h3>
+          {!loaded ? (
+            <p className="text-slate-400 text-sm">Loading…</p>
+          ) : openAlerts.length === 0 ? (
+            <p className="text-slate-400 text-sm">No open alerts.</p>
+          ) : (
             <div className="space-y-4">
-              {[
-                { title: "Bus 104 delayed by 15m", route: "Gazipur Route" },
-                { title: "Capacity reaching 90%", route: "Mirpur Route" }
-              ].map((alert, i) => (
-                <div key={i} className="flex gap-3 items-start">
-                  <div className="w-2 h-2 rounded-full bg-[#F59E0B] mt-2 shrink-0" />
-                  <div>
-                    <p className="text-slate-200 text-sm font-medium">{alert.title}</p>
-                    <p className="text-slate-400 text-xs">{alert.route}</p>
+              {openAlerts.slice(0, 5).map((a) => (
+                <div key={a.id} className="flex gap-3 items-start">
+                  <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${a.severity === 'critical' ? 'bg-[#EF4444]' : 'bg-[#F59E0B]'}`} />
+                  <div className="min-w-0">
+                    <p className="text-slate-200 text-sm font-medium capitalize">{a.type.replace(/_/g, ' ')}</p>
+                    <p className="text-slate-400 text-xs truncate">{a.message || a.source} · {timeAgo(a.created_at)}</p>
                   </div>
                 </div>
               ))}
             </div>
-            <button onClick={() => navigate('/emergency')} className="w-full mt-4 text-sm text-[#3B82F6] font-medium hover:text-white transition-colors">View All Alerts</button>
-          </div>
-
-          <div className="bg-[#1E293B] border border-slate-800 rounded-2xl p-6">
-            <h3 className="text-white font-semibold mb-4">Route Performance</h3>
-            <div className="space-y-4">
-              {[
-                { name: "Campus ↔ Gazipur", trend: "+12%", val: "85%" },
-                { name: "Campus ↔ Mirpur", trend: "+5%", val: "72%" },
-                { name: "Campus ↔ Uttara", trend: "-2%", val: "64%" }
-              ].map((route, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <span className="text-slate-300 text-sm">{route.name}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-white font-medium text-sm">{route.val}</span>
-                    <span className={`text-xs font-medium flex items-center ${route.trend.startsWith('+') ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
-                      <TrendingUp className="w-3 h-3 mr-0.5" /> {route.trend}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
+          <button onClick={() => navigate('/emergency')} className="w-full mt-4 text-sm text-[#3B82F6] font-medium hover:text-white transition-colors">View all alerts</button>
         </div>
       </div>
     </div>
