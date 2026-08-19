@@ -272,8 +272,10 @@ export function LiveMap() {
 
   return (
     <div className="h-full bg-gray-100 relative overflow-hidden">
-      {/* Real map */}
-      <div ref={mapContainer} className="absolute inset-0" />
+      {/* Real map. h-full/w-full, not just inset-0: maplibre-gl.css forces
+          position:relative on this element, which cancels `absolute inset-0`
+          and collapses it to 0 height. Explicit sizing is immune to that. */}
+      <div ref={mapContainer} className="absolute inset-0 h-full w-full" />
 
       {/* Top bar: back + route picker + connection */}
       <div className="absolute top-0 left-0 right-0 p-4 z-10 flex items-center gap-2">
