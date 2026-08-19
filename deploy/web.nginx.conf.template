@@ -36,6 +36,16 @@ server {
         proxy_read_timeout 3600s;
     }
 
+    # The app shell must always be revalidated. Without this it inherits nginx's
+    # default heuristic caching, so a deploy leaves browsers running the previous
+    # index.html — which points at the previous (now-deleted) bundle. no-cache
+    # lets the browser keep a copy but revalidate every load (a cheap 304 when
+    # unchanged), so a new deploy is picked up immediately.
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+
     # Client-side routing: an unknown path returns the app shell, not a 404.
     location / {
         try_files $uri /index.html;
