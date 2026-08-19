@@ -2287,6 +2287,33 @@
         ]
       }
     },
+    "/track/live": {
+      "get": {
+        "tags": [
+          "tracking"
+        ],
+        "summary": "Live Fleet",
+        "description": "Every live bus across every route, in one snapshot.\n\nThe same Redis-only picture the per-route WebSocket draws, but for the whole\nfleet at once, so the student dashboard can feature whatever is actually\nrunning instead of guessing a single route (which is how it ended up saying\n\"no buses live\" while a bus ran on another route). A snapshot, not a stream \u2014\nthe live map is where a student watches a bus move.\n\nPosition is aged by the server's receive time, not the phone's clock, so a\nhelper with a wrong clock still reads as live (see fleet_view.Position).",
+        "operationId": "live_fleet_track_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveFleetOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/track/nearby": {
       "get": {
         "tags": [
@@ -4234,6 +4261,205 @@
           "suspended"
         ],
         "title": "HelperStatus"
+      },
+      "LiveFleetBus": {
+        "properties": {
+          "trip_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trip Id"
+          },
+          "bus_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Bus Id"
+          },
+          "reg_no": {
+            "type": "string",
+            "title": "Reg No"
+          },
+          "nickname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nickname"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "heading": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading"
+          },
+          "speed_kmh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed Kmh"
+          },
+          "fix_ts": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fix Ts"
+          },
+          "fix_age_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fix Age S"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/GpsFreshness"
+          },
+          "occupied": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occupied"
+          },
+          "capacity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity"
+          },
+          "next_stop_eta_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Stop Eta Minutes"
+          },
+          "route_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Route Id"
+          },
+          "route_name": {
+            "type": "string",
+            "title": "Route Name"
+          },
+          "route_direction": {
+            "$ref": "#/components/schemas/RouteDirection"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trip_id",
+          "bus_id",
+          "reg_no",
+          "freshness",
+          "route_id",
+          "route_name",
+          "route_direction"
+        ],
+        "title": "LiveFleetBus",
+        "description": "A live bus plus the route it runs.\n\nThe per-route frame leaves route out \u2014 the subscriber already knows it from\nthe path. The dashboard has picked no route, so it needs the route named on\nevery bus to say \"Bus 3 \u00b7 Campus Shuttle\" without a second lookup."
+      },
+      "LiveFleetOut": {
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "live": {
+            "type": "integer",
+            "title": "Live"
+          },
+          "stale": {
+            "type": "integer",
+            "title": "Stale"
+          },
+          "lost": {
+            "type": "integer",
+            "title": "Lost"
+          },
+          "buses": {
+            "items": {
+              "$ref": "#/components/schemas/LiveFleetBus"
+            },
+            "type": "array",
+            "title": "Buses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_at",
+          "total",
+          "live",
+          "stale",
+          "lost",
+          "buses"
+        ],
+        "title": "LiveFleetOut",
+        "description": "Every live bus across every route in one snapshot.\n\nFeeds a dashboard that features whatever is actually running before the\nstudent has chosen a route \u2014 unlike the per-route WebSocket, which only ever\nknows about the one route it was opened for."
       },
       "LoginRequest": {
         "properties": {

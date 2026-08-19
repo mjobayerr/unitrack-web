@@ -1035,6 +1035,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/track/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Live Fleet
+         * @description Every live bus across every route, in one snapshot.
+         *
+         *     The same Redis-only picture the per-route WebSocket draws, but for the whole
+         *     fleet at once, so the student dashboard can feature whatever is actually
+         *     running instead of guessing a single route (which is how it ended up saying
+         *     "no buses live" while a bus ran on another route). A snapshot, not a stream —
+         *     the live map is where a student watches a bus move.
+         *
+         *     Position is aged by the server's receive time, not the phone's clock, so a
+         *     helper with a wrong clock still reads as live (see fleet_view.Position).
+         */
+        get: operations["live_fleet_track_live_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/track/nearby": {
         parameters: {
             query?: never;
@@ -1879,6 +1908,82 @@ export interface components {
          * @enum {string}
          */
         HelperStatus: "pending" | "approved" | "suspended";
+        /**
+         * LiveFleetBus
+         * @description A live bus plus the route it runs.
+         *
+         *     The per-route frame leaves route out — the subscriber already knows it from
+         *     the path. The dashboard has picked no route, so it needs the route named on
+         *     every bus to say "Bus 3 · Campus Shuttle" without a second lookup.
+         */
+        LiveFleetBus: {
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
+            /**
+             * Bus Id
+             * Format: uuid
+             */
+            bus_id: string;
+            /** Reg No */
+            reg_no: string;
+            /** Nickname */
+            nickname?: string | null;
+            /** Lat */
+            lat?: number | null;
+            /** Lng */
+            lng?: number | null;
+            /** Heading */
+            heading?: number | null;
+            /** Speed Kmh */
+            speed_kmh?: number | null;
+            /** Fix Ts */
+            fix_ts?: string | null;
+            /** Fix Age S */
+            fix_age_s?: number | null;
+            freshness: components["schemas"]["GpsFreshness"];
+            /** Occupied */
+            occupied?: number | null;
+            /** Capacity */
+            capacity?: number | null;
+            /** Next Stop Eta Minutes */
+            next_stop_eta_minutes?: number | null;
+            /**
+             * Route Id
+             * Format: uuid
+             */
+            route_id: string;
+            /** Route Name */
+            route_name: string;
+            route_direction: components["schemas"]["RouteDirection"];
+        };
+        /**
+         * LiveFleetOut
+         * @description Every live bus across every route in one snapshot.
+         *
+         *     Feeds a dashboard that features whatever is actually running before the
+         *     student has chosen a route — unlike the per-route WebSocket, which only ever
+         *     knows about the one route it was opened for.
+         */
+        LiveFleetOut: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Total */
+            total: number;
+            /** Live */
+            live: number;
+            /** Stale */
+            stale: number;
+            /** Lost */
+            lost: number;
+            /** Buses */
+            buses: components["schemas"]["LiveFleetBus"][];
+        };
         /** LoginRequest */
         LoginRequest: {
             /**
@@ -4408,6 +4513,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    live_fleet_track_live_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveFleetOut"];
                 };
             };
         };

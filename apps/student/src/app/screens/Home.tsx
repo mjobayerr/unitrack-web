@@ -3,12 +3,11 @@ import { useNavigate } from 'react-router';
 import { MapPin, Clock, Users, ArrowRight, Ticket, Bus, CreditCard } from 'lucide-react';
 import { useAuth } from '../../lib/auth';
 import { apiCall, type components } from '../../lib/api';
-import { useLiveTrack, type TrackBus } from '../../lib/useLiveTrack';
 
-type Route = components['schemas']['RouteOut'];
 type TicketT = components['schemas']['TicketOut'];
 type Order = components['schemas']['OrderOut'];
 type Product = components['schemas']['ProductOut'];
+type LiveBus = components['schemas']['LiveFleetBus'];
 
 const taka = (paisa: number) => `৳${Math.round(paisa / 100).toLocaleString('en-US')}`;
 
@@ -23,14 +22,18 @@ function initial(name: string): string {
 }
 
 /** Freshest first: live before stale, and within each the most recent fix. */
-function liveFirst(a: TrackBus, b: TrackBus): number {
+function liveFirst(a: LiveBus, b: LiveBus): number {
   const rank = { live: 0, stale: 1, lost: 2 } as const;
   if (rank[a.freshness] !== rank[b.freshness]) return rank[a.freshness] - rank[b.freshness];
   return (a.fix_age_s ?? 1e9) - (b.fix_age_s ?? 1e9);
 }
 
-function busLabel(b: TrackBus): string {
+function busLabel(b: LiveBus): string {
   return b.nickname?.trim() || b.reg_no;
+}
+
+function routeLabel(b: LiveBus): string {
+  return `${b.route_name} · ${b.route_direction}`;
 }
 
 function seatColor(available: number, capacity: number): string {
@@ -45,33 +48,44 @@ export function Home() {
   const [tickets, setTickets] = useState<TicketT[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [routeId, setRouteId] = useState<string | null>(null);
-  const [routeName, setRouteName] = useState<string>('');
+  const [fleet, setFleet] = useState<LiveBus[]>([]);
+  const [fleetLoaded, setFleetLoaded] = useState(false);
 
-  // The live map subscribes per route; the dashboard mirrors that for the one
-  // route it features. A null routeId keeps the socket closed until routes load.
-  const { buses } = useLiveTrack(routeId);
-
+  // Wallet + purchases, once.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [t, o, p, r] = await Promise.all([
+      const [t, o, p] = await Promise.all([
         apiCall((api) => api.GET('/shop/tickets', {})).catch(() => [] as TicketT[]),
         apiCall((api) => api.GET('/shop/orders', {})).catch(() => [] as Order[]),
         apiCall((api) => api.GET('/shop/products', {})).catch(() => [] as Product[]),
-        apiCall((api) => api.GET('/fleet/routes', {})).catch(() => [] as Route[]),
       ]);
       if (cancelled) return;
       setTickets(t);
       setOrders(o);
       setProducts(p);
-      if (r.length > 0) {
-        setRouteId(r[0].id);
-        setRouteName(r[0].name);
-      }
     })();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  // Every live bus across every route, polled. The live map is where a student
+  // watches one move; this is just a snapshot of what is running, so it features
+  // whatever is actually out there rather than guessing a single route.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const out = await apiCall((api) => api.GET('/track/live', {})).catch(() => null);
+      if (cancelled) return;
+      if (out) setFleet(out.buses);
+      setFleetLoaded(true);
+    };
+    void load();
+    const id = window.setInterval(load, 15_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
     };
   }, []);
 
@@ -96,7 +110,7 @@ export function Home() {
     [orders],
   );
 
-  const liveBuses = useMemo(() => buses.filter((b) => b.freshness !== 'lost').sort(liveFirst), [buses]);
+  const liveBuses = useMemo(() => fleet.filter((b) => b.freshness !== 'lost').sort(liveFirst), [fleet]);
   const activeBus = liveBuses[0] ?? null;
   const nextBus = liveBuses[1] ?? null;
 
@@ -153,7 +167,7 @@ export function Home() {
               <span className={`w-2 h-2 rounded-full ${activeBus ? 'bg-[#1DB954] animate-pulse' : 'bg-white/30'}`} />
               <span className="text-white" style={{ fontSize: 12, fontWeight: 600 }}>LIVE TRACKING</span>
             </div>
-            {routeName && <span className="text-white/60 truncate" style={{ fontSize: 11, maxWidth: 150 }}>{routeName}</span>}
+            {liveBuses.length > 0 && <span className="text-white/70" style={{ fontSize: 11, fontWeight: 600 }}>{liveBuses.length} live</span>}
           </div>
 
           {activeBus ? (
@@ -164,7 +178,7 @@ export function Home() {
                   <p className="text-gray-900" style={{ fontSize: 20, fontWeight: 800 }}>{busLabel(activeBus)}</p>
                   <div className="flex items-center gap-1 mt-0.5">
                     <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                    <p className="text-gray-500" style={{ fontSize: 12 }}>{routeName}</p>
+                    <p className="text-gray-500" style={{ fontSize: 12 }}>{routeLabel(activeBus)}</p>
                   </div>
                 </div>
                 {activeBus.next_stop_eta_minutes != null && (
@@ -215,7 +229,7 @@ export function Home() {
                 <Bus className="w-6 h-6 text-gray-400" />
               </div>
               <p className="text-gray-500" style={{ fontSize: 13 }}>
-                {routeId ? 'No buses are live right now.' : 'Loading live buses…'}
+                {fleetLoaded ? 'No buses are live right now.' : 'Loading live buses…'}
               </p>
               <button
                 onClick={() => navigate('/map')}
@@ -245,7 +259,7 @@ export function Home() {
                 {busLabel(nextBus)}
                 {nextBus.next_stop_eta_minutes != null && ` • ${nextBus.next_stop_eta_minutes} min`}
               </p>
-              <p className="text-gray-400 truncate" style={{ fontSize: 12 }}>{routeName}</p>
+              <p className="text-gray-400 truncate" style={{ fontSize: 12 }}>{routeLabel(nextBus)}</p>
             </div>
             <ArrowRight className="w-4 h-4 text-gray-300 shrink-0" />
           </button>
