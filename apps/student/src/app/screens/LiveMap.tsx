@@ -80,7 +80,14 @@ export function LiveMap() {
   const ty = dragTy ?? restTy;
 
   function onSheetDown(e: React.PointerEvent) {
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // Capture so the drag keeps tracking if the finger slides off the handle.
+    // Wrapped because a browser can reject the capture, and that must not abort
+    // the drag.
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* capture unavailable — the drag still works without it */
+    }
     dragRef.current = { y0: e.clientY, ty0: ty, moved: 0 };
   }
   function onSheetMove(e: React.PointerEvent) {
