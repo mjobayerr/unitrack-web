@@ -46,28 +46,15 @@ RUN pnpm --filter "@unitrack/${APP}" run build
 
 
 # --- runtime ---------------------------------------------------------------
-# `output: "standalone"` traced exactly the files that are reached, so this
-# stage carries neither the source nor the dev dependencies — about 60 MB
-# instead of the better part of a gigabyte.
-FROM node:22-alpine AS runner
+# The apps are static Vite SPAs, so the runtime is just nginx: it serves the
+# built bundle and reverse-proxies the two dynamic paths the browser calls on
+# the same origin — /api to the backend (prefix stripped) and /ws for the
+# live-tracking WebSocket (passed through). This is the production half of each
+# app's vite.config.ts dev proxy, so the app behaves the same in both.
+FROM nginx:1.27-alpine AS runner
 ARG APP
-ENV NODE_ENV=production
-# The standalone server binds to localhost by default, which inside a container
-# means nothing else can reach it — including cloudflared on the same network.
-ENV HOSTNAME=0.0.0.0
-WORKDIR /app
-
-# Runs unprivileged. Next needs no write access to its own bundle, so there is
-# no reason for this process to be root inside the container.
-RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
-
-COPY --from=build --chown=nextjs:nodejs /repo/apps/${APP}/.next/standalone ./
-# Static assets are deliberately excluded from the traced output and have to be
-# copied alongside it, or every page renders unstyled with a 404 per chunk.
-COPY --from=build --chown=nextjs:nodejs /repo/apps/${APP}/.next/static ./apps/${APP}/.next/static
-
-USER nextjs
-
-# Baked in so the CMD does not need a shell to expand the app name.
-ENV APP_ENTRY=apps/${APP}/server.js
-CMD ["sh", "-c", "node $APP_ENTRY"]
+# The tunnel routes to this port (admin:3000, student:3001); compose sets PORT.
+# The nginx image's entrypoint envsubst's ${PORT} into the template below.
+ENV PORT=3000
+COPY --from=build /repo/apps/${APP}/dist /usr/share/nginx/html
+COPY deploy/web.nginx.conf.template /etc/nginx/templates/default.conf.template
