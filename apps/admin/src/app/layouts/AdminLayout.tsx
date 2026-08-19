@@ -1,6 +1,8 @@
+import { useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router";
 import { LayoutDashboard, Map, Users, Bus, AlertOctagon, Route, LogOut, Bell, MapPin } from "lucide-react";
 import { useAuth } from "../../lib/auth";
+import { apiCall } from "../../lib/api";
 
 // Only pages backed by a real endpoint. Revenue, ridership, wallet and trip
 // history were mock-only screens with no backend and have been removed.
@@ -26,6 +28,35 @@ export function AdminLayout() {
   const { user, logout } = useAuth();
 
   const currentPage = menu.find((m) => isActive(location.pathname, m.path));
+
+  const [openAlerts, setOpenAlerts] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Real open-alert count for the bell badge, refreshed periodically.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const a = await apiCall((api) => api.GET("/admin/alerts", {})).catch(() => null);
+      if (!cancelled && a) setOpenAlerts(a.filter((x) => x.status === "open").length);
+    };
+    void load();
+    const id = window.setInterval(load, 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, []);
+
+  // Close the profile menu on an outside click.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [menuOpen]);
 
   const handleSignOut = async () => {
     await logout();
@@ -85,11 +116,38 @@ export function AdminLayout() {
         <header className="h-14 bg-[#1E293B] border-b border-slate-800 flex items-center justify-between px-6 shrink-0">
           <h2 className="text-white font-semibold text-sm">{currentPage?.name || "Dashboard"}</h2>
           <div className="flex items-center gap-3">
-            <button className="relative w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
+            <button
+              onClick={() => navigate("/emergency")}
+              className="relative w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-colors"
+              title="Alerts"
+              aria-label="Alerts"
+            >
               <Bell className="w-4 h-4 text-slate-300" />
-              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-[#EF4444] rounded-full text-white text-[9px] font-bold flex items-center justify-center">2</span>
+              {openAlerts > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-1 bg-[#EF4444] rounded-full text-white text-[9px] font-bold flex items-center justify-center">{openAlerts}</span>
+              )}
             </button>
-            <div className="w-8 h-8 rounded-full bg-[#1A3C8F] flex items-center justify-center text-white text-xs font-bold">{avatar}</div>
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="w-8 h-8 rounded-full bg-[#1A3C8F] hover:bg-[#2952b3] flex items-center justify-center text-white text-xs font-bold transition-colors"
+                aria-label="Account"
+              >
+                {avatar}
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-[#1E293B] border border-slate-700 rounded-xl shadow-2xl z-30 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-800">
+                    <p className="text-white text-sm font-semibold truncate">{user?.name ?? "Admin"}</p>
+                    <p className="text-slate-400 text-xs truncate">{user?.email}</p>
+                    {user?.role && <span className="mt-1 inline-block text-[10px] font-semibold text-[#3B82F6] bg-[#3B82F6]/10 rounded px-1.5 py-0.5 uppercase">{user.role}</span>}
+                  </div>
+                  <button onClick={handleSignOut} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800 hover:text-white">
+                    <LogOut className="w-4 h-4" /> Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

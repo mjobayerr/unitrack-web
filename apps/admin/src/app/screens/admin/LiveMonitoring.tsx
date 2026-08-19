@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bus, Circle, Users, Clock, MapPin, Loader2 } from 'lucide-react';
 import { apiCall, type components } from '../../../lib/api';
+import { LiveFleetMap } from '../../components/LiveFleetMap';
 
 type Fleet = components['schemas']['FleetOut'];
 type FleetBus = components['schemas']['FleetBusOut'];
@@ -17,6 +18,7 @@ type FilterType = 'all' | Freshness;
 export function LiveMonitoring() {
   const [fleet, setFleet] = useState<Fleet | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
+  const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +49,10 @@ export function LiveMonitoring() {
         ))}
       </div>
 
+      <div className="bg-[#1E293B] border border-slate-800 rounded-2xl p-3">
+        <LiveFleetMap buses={buses} selectedId={selected} onSelect={setSelected} height="30rem" />
+      </div>
+
       <div className="bg-[#1E293B] border border-slate-800 rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
           <h3 className="text-white font-semibold flex items-center gap-2"><Bus className="w-5 h-5 text-[#3B82F6]" /> Live trips</h3>
@@ -62,7 +68,11 @@ export function LiveMonitoring() {
             {filtered.map((b: FleetBus) => {
               const free = b.capacity != null && b.occupied != null ? Math.max(b.capacity - b.occupied, 0) : null;
               return (
-                <div key={b.trip_id} className="px-6 py-4 flex items-center justify-between gap-4">
+                <div
+                  key={b.trip_id}
+                  onClick={() => setSelected(b.bus_id)}
+                  className={`px-6 py-4 flex items-center justify-between gap-4 cursor-pointer transition-colors ${selected === b.bus_id ? 'bg-[#3B82F6]/10' : 'hover:bg-slate-800/40'}`}
+                >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-full bg-[#3B82F6]/15 flex items-center justify-center shrink-0"><Bus className="w-4 h-4 text-[#3B82F6]" /></div>
                     <div className="min-w-0">

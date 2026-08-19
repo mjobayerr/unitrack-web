@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Bus, MapPin, Clock, Loader2, Route as RouteIcon, Gauge } from 'lucide-react';
 import { apiCall, ApiError, type components } from '../../../lib/api';
+import { PathMap } from '../../components/PathMap';
 
 type BusT = components['schemas']['BusOut'];
 type History = components['schemas']['BusHistoryPathOut'];
@@ -94,6 +95,10 @@ export function BusHistory() {
             <div className="bg-[#1E293B] border border-slate-800 rounded-2xl p-5"><p className="text-slate-400 text-sm">Points</p><p className="text-white text-2xl font-bold mt-1">{history.point_count}</p></div>
             <div className="bg-[#1E293B] border border-slate-800 rounded-2xl p-5"><p className="text-slate-400 text-sm">First fix</p><p className="text-white text-sm font-medium mt-1">{fmt(history.from_timestamp)}</p></div>
             <div className="bg-[#1E293B] border border-slate-800 rounded-2xl p-5"><p className="text-slate-400 text-sm">Last fix</p><p className="text-white text-sm font-medium mt-1">{fmt(history.to_timestamp)}</p></div>
+          </div>
+
+          <div className="bg-[#1E293B] border border-slate-800 rounded-2xl p-3">
+            <PathMap path={history.path} height="28rem" />
           </div>
 
           <div className="bg-[#1E293B] border border-slate-800 rounded-2xl overflow-hidden">

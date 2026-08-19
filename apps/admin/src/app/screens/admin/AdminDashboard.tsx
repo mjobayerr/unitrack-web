@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Bus, Activity, Route as RouteIcon, UserCheck, AlertTriangle, Loader2 } from 'lucide-react';
 import { apiCall, type components } from '../../../lib/api';
+import { LiveFleetMap } from '../../components/LiveFleetMap';
 
 type Fleet = components['schemas']['FleetOut'];
 type BusT = components['schemas']['BusOut'];
@@ -91,21 +92,13 @@ export function AdminDashboard() {
           ) : fleet.buses.length === 0 ? (
             <p className="py-12 text-center text-slate-400">No trips running right now.</p>
           ) : (
-            <div className="space-y-2">
-              <div className="flex gap-4 text-sm mb-2">
+            <div className="space-y-3">
+              <div className="flex gap-4 text-sm">
                 <span className="text-[#22C55E]">{fleet.live} live</span>
                 <span className="text-[#F59E0B]">{fleet.stale} stale</span>
                 <span className="text-slate-400">{fleet.lost} lost</span>
               </div>
-              {fleet.buses.slice(0, 6).map((b) => (
-                <div key={b.trip_id} className="flex items-center justify-between py-2 border-b border-slate-800 last:border-0">
-                  <div>
-                    <p className="text-white text-sm font-medium">{b.nickname || b.reg_no}</p>
-                    <p className="text-slate-400 text-xs">{b.route_name} · {b.route_direction} · {b.helper_name}</p>
-                  </div>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${b.freshness === 'live' ? 'text-[#22C55E] bg-[#22C55E]/10' : b.freshness === 'stale' ? 'text-[#F59E0B] bg-[#F59E0B]/10' : 'text-slate-400 bg-slate-700/40'}`}>{b.freshness}</span>
-                </div>
-              ))}
+              <LiveFleetMap buses={fleet.buses} height="22rem" />
             </div>
           )}
         </div>
