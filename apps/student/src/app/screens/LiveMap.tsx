@@ -64,11 +64,15 @@ export function LiveMap() {
 
   // --- collapsible bottom sheet -------------------------------------------
   const sheetRef = useRef<HTMLDivElement>(null);
+  const grabRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [dragTy, setDragTy] = useState<number | null>(null);
   const dragRef = useRef<{ y0: number; ty0: number; moved: number } | null>(null);
 
-  const collapsedTy = () => Math.max((sheetRef.current?.offsetHeight ?? 260) - SHEET_PEEK, 0);
+  // Collapse to exactly the grab area (handle + summary): using a fixed peek
+  // taller than it left a strip of the detail showing below the summary.
+  const collapsedTy = () =>
+    Math.max((sheetRef.current?.offsetHeight ?? 260) - (grabRef.current?.offsetHeight ?? SHEET_PEEK), 0);
   const restTy = collapsed ? collapsedTy() : 0;
   const ty = dragTy ?? restTy;
 
@@ -364,8 +368,10 @@ export function LiveMap() {
         style={{ transform: `translateY(${ty}px)`, transition: dragTy != null ? 'none' : 'transform .25s ease' }}
         className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[24px] shadow-2xl z-20 touch-none"
       >
-        {/* Grab area (handle + summary) — stays visible when collapsed. */}
+        {/* Grab area (handle + summary) — the only part left visible when
+            collapsed, so the collapsed peek is measured from it exactly. */}
         <div
+          ref={grabRef}
           onPointerDown={onSheetDown}
           onPointerMove={onSheetMove}
           onPointerUp={onSheetUp}
