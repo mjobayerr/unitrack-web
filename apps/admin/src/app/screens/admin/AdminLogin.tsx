@@ -84,13 +84,8 @@ export function AdminLogin() {
             </p>
           )}
 
-          <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" className="rounded bg-slate-800 border-slate-700 text-[#3B82F6]" />
-              <span className="text-slate-400">Remember me</span>
-            </label>
-            <a href="#" className="text-[#3B82F6] hover:text-[#60A5FA]">Forgot password?</a>
-          </div>
+          {/* No self-service reset for admins on the web on purpose — a forgotten
+              admin password is recovered on the server with scripts.set_admin_password. */}
 
           <button
             type="submit"
