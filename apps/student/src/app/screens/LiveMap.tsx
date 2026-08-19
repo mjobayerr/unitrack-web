@@ -191,8 +191,10 @@ export function LiveMap() {
           } else {
             meMarkerRef.current.setLngLat(at);
           }
-          // Bring the student into view once, alongside the route.
-          if (!meFramedRef.current) {
+          // Bring the student into view once, alongside the route. Only once the
+          // map is ready — a fix that lands before then must not burn the
+          // one-shot without actually framing anything.
+          if (!meFramedRef.current && readyRef.current) {
             meFramedRef.current = true;
             frameRef.current();
           }
