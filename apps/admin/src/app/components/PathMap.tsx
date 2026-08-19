@@ -48,25 +48,59 @@ function orderedSegments(path: GpsPoint[]): LL[][] {
   return segments.filter((s) => s.length >= 2);
 }
 
-// --- snap to roads (OSRM map matching) -------------------------------------
-// Straight lines between sparse fixes cut across buildings; matching pins the
-// trace to the actual road network. Free public OSRM, so it is best-effort — a
-// failed or rate-limited match falls back to the raw segment.
-const OSRM = 'https://router.project-osrm.org/match/v1/driving';
-const CHUNK = 90; // OSRM demo caps coordinates per request
+// --- snap to roads (Valhalla map matching) ---------------------------------
+// Straight lines between noisy fixes cut across buildings — this is what a raw
+// GPS trace looks like. Google Maps and every tracker "map-match": they pin the
+// trace to the road network. Valhalla's map_snap does exactly that. Free public
+// instance, so it is best-effort — a failed or throttled match falls back to the
+// raw segment, and the map still shows something.
+const VALHALLA = 'https://valhalla1.openstreetmap.de/trace_route';
+const CHUNK = 700; // Valhalla accepts far more, but keep each request modest
 
-async function matchChunk(coords: LL[]): Promise<LL[] | null> {
+/** Decode a Valhalla/Google encoded polyline (precision 6) to [lng,lat]. */
+function decodePolyline(str: string): LL[] {
+  const out: LL[] = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+  while (index < str.length) {
+    let shift = 0;
+    let result = 0;
+    let b: number;
+    do {
+      b = str.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    lat += result & 1 ? ~(result >> 1) : result >> 1;
+    shift = 0;
+    result = 0;
+    do {
+      b = str.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    lng += result & 1 ? ~(result >> 1) : result >> 1;
+    out.push([lng / 1e6, lat / 1e6]);
+  }
+  return out;
+}
+
+async function snap(coords: LL[]): Promise<LL[] | null> {
   if (coords.length < 2) return null;
-  const path = coords.map((c) => `${c[0].toFixed(6)},${c[1].toFixed(6)}`).join(';');
-  const radiuses = coords.map(() => 35).join(';');
+  const shape = coords.map((c) => ({ lat: c[1], lon: c[0] }));
   try {
-    const res = await fetch(`${OSRM}/${path}?geometries=geojson&overview=full&tidy=true&radiuses=${radiuses}`);
+    const res = await fetch(VALHALLA, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ shape, costing: 'auto', shape_match: 'map_snap', format: 'osrm' }),
+    });
     if (!res.ok) return null;
     const d = await res.json();
     if (d.code !== 'Ok' || !Array.isArray(d.matchings) || d.matchings.length === 0) return null;
     const out: LL[] = [];
     for (const m of d.matchings) {
-      if (m?.geometry?.coordinates) for (const c of m.geometry.coordinates) out.push(c as LL);
+      if (typeof m.geometry === 'string') out.push(...decodePolyline(m.geometry));
     }
     return out.length >= 2 ? out : null;
   } catch {
@@ -75,12 +109,11 @@ async function matchChunk(coords: LL[]): Promise<LL[] | null> {
 }
 
 async function matchSegment(coords: LL[]): Promise<LL[]> {
-  if (coords.length <= CHUNK) return (await matchChunk(coords)) ?? coords;
+  if (coords.length <= CHUNK) return (await snap(coords)) ?? coords;
   const parts: LL[] = [];
   for (let i = 0; i < coords.length; i += CHUNK - 1) {
     const slice = coords.slice(i, i + CHUNK);
-    const matched = await matchChunk(slice);
-    parts.push(...(matched ?? slice));
+    parts.push(...((await snap(slice)) ?? slice));
     if (i + CHUNK >= coords.length) break;
   }
   return parts;
