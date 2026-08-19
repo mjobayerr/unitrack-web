@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { ArrowLeft, Users, Clock, MapPin, Wifi, WifiOff, LocateFixed } from 'lucide-react';
+import { ArrowLeft, Users, Clock, MapPin, Wifi, WifiOff, LocateFixed, Plus, Minus } from 'lucide-react';
 import { apiCall, type components } from '../../lib/api';
 import { useLiveTrack, type TrackBus } from '../../lib/useLiveTrack';
 
@@ -151,7 +151,8 @@ export function LiveMap() {
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
     const map = new maplibregl.Map({ container: mapContainer.current, style: OSM_STYLE, center: DHAKA, zoom: 12 });
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    // Zoom is a custom control (below) so it aligns with the other buttons;
+    // maplibre's own control sits on a different margin and looks off.
     mapRef.current = map;
 
     map.on('load', () => {
@@ -297,9 +298,6 @@ export function LiveMap() {
 
   return (
     <div className="h-full bg-gray-100 relative overflow-hidden">
-      {/* Keep maplibre's zoom control clear of the top bar. */}
-      <style>{`.maplibregl-ctrl-top-right{top:4.25rem;right:.5rem}`}</style>
-
       <div ref={mapContainer} className="absolute inset-0 h-full w-full" />
 
       {/* Top bar: back + route picker + connection */}
@@ -332,10 +330,28 @@ export function LiveMap() {
         </div>
       </div>
 
-      {/* Recenter — stacked below the zoom control, no overlap. */}
+      {/* Right-side control stack — all at right-4 (16px), w-10, so they line
+          up with the connection pill in the top bar. */}
+      <div className="absolute right-4 top-[5.5rem] z-10 bg-white rounded-full shadow-lg flex flex-col overflow-hidden">
+        <button
+          onClick={() => mapRef.current?.zoomIn()}
+          className="w-10 h-10 flex items-center justify-center text-gray-700 active:bg-gray-100"
+          aria-label="Zoom in"
+        >
+          <Plus className="w-5 h-5" />
+        </button>
+        <div className="h-px bg-gray-200 mx-2" />
+        <button
+          onClick={() => mapRef.current?.zoomOut()}
+          className="w-10 h-10 flex items-center justify-center text-gray-700 active:bg-gray-100"
+          aria-label="Zoom out"
+        >
+          <Minus className="w-5 h-5" />
+        </button>
+      </div>
       <button
         onClick={recenter}
-        className="absolute right-2 top-[8.5rem] z-10 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center active:bg-gray-100"
+        className="absolute right-4 top-[10.5rem] z-10 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center active:bg-gray-100"
         title="Center on my location"
         aria-label="Center on my location"
       >
