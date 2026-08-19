@@ -411,7 +411,6 @@
           "auth"
         ],
         "summary": "Me",
-        "description": "The signed-in account plus the profile registration collected.\n\nThe student row is a second SELECT rather than an eager join because\n`get_current_user` is shared by every authenticated route and most do not\nneed it \u2014 the cost belongs here, at the one endpoint that returns a profile.\nOnly students have a row; helpers and admins fall through with `student`\nnull.",
         "operationId": "me_auth_me_get",
         "responses": {
           "200": {
@@ -420,6 +419,51 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Update Me",
+        "description": "Edit the fields a person owns about themselves \u2014 name and phone.\n\nA PATCH, not a PUT: only the keys sent are touched, so a client editing the\nname never has to echo back the phone. `phone` set to null clears it; phone\nabsent leaves it, which is why the check is on `model_fields_set` and not on\nthe value being None.",
+        "operationId": "update_me_auth_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -4633,6 +4677,39 @@
         "type": "object",
         "title": "ProductUpdate",
         "description": "A partial edit. Unset fields are left alone.\n\nEvery field is optional and `None` is a meaningful value for `route_scope`,\nso callers must be able to say \"clear the route scope\" without that being\nconfused with \"don't touch it\". The handler uses `exclude_unset=True` to\ntell those apart \u2014 without it, every PATCH would silently unscope a product.\n\nEditing `price_paisa` is safe and does not rewrite history: `orders` copy\nthe amount at purchase time, so a price change only affects future sales."
+      },
+      "ProfileUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ProfileUpdate",
+        "description": "Fields a signed-in user may change about themselves.\n\nOnly what the backend actually stores and a person owns: their display name\nand phone. Email is the login identity and is left out on purpose \u2014 changing\nit is a re-verification flow, not a text edit. `phone` distinguishes \"clear\nit\" (explicit null) from \"leave it\" (absent) via `model_fields_set`."
       },
       "QrMaterialOut": {
         "properties": {

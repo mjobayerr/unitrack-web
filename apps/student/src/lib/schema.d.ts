@@ -255,23 +255,23 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Me
-         * @description The signed-in account plus the profile registration collected.
-         *
-         *     The student row is a second SELECT rather than an eager join because
-         *     `get_current_user` is shared by every authenticated route and most do not
-         *     need it — the cost belongs here, at the one endpoint that returns a profile.
-         *     Only students have a row; helpers and admins fall through with `student`
-         *     null.
-         */
+        /** Me */
         get: operations["me_auth_me_get"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update Me
+         * @description Edit the fields a person owns about themselves — name and phone.
+         *
+         *     A PATCH, not a PUT: only the keys sent are touched, so a client editing the
+         *     name never has to echo back the phone. `phone` set to null clears it; phone
+         *     absent leaves it, which is why the check is on `model_fields_set` and not on
+         *     the value being None.
+         */
+        patch: operations["update_me_auth_me_patch"];
         trace?: never;
     };
     "/admin/helpers": {
@@ -2084,6 +2084,21 @@ export interface components {
             active?: boolean | null;
         };
         /**
+         * ProfileUpdate
+         * @description Fields a signed-in user may change about themselves.
+         *
+         *     Only what the backend actually stores and a person owns: their display name
+         *     and phone. Email is the login identity and is left out on purpose — changing
+         *     it is a re-verification flow, not a text edit. `phone` distinguishes "clear
+         *     it" (explicit null) from "leave it" (absent) via `model_fields_set`.
+         */
+        ProfileUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Phone */
+            phone?: string | null;
+        };
+        /**
          * QrMaterialOut
          * @description Everything a student's device needs to render boarding codes offline.
          *
@@ -2995,6 +3010,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeOut"];
+                };
+            };
+        };
+    };
+    update_me_auth_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

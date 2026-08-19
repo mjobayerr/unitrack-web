@@ -67,7 +67,7 @@ export function TransactionHistory() {
   const productName = (id: string) => products[id]?.name ?? 'Ticket';
 
   return (
-    <div className="min-h-screen bg-background max-w-[430px] mx-auto">
+    <div className="min-h-full bg-background max-w-[430px] mx-auto">
       {/* Header */}
       <div className="bg-gradient-to-br from-[#1A3C8F] to-[#2d5bb7] text-white px-6 pt-8 pb-8">
         <div className="flex items-center gap-4 mb-6">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Bell, MapPin, Clock, Users, ArrowRight, Ticket, Bus, CreditCard } from 'lucide-react';
+import { MapPin, Clock, Users, ArrowRight, Ticket, Bus, CreditCard } from 'lucide-react';
 import { useAuth } from '../../lib/auth';
 import { apiCall, type components } from '../../lib/api';
 import { useLiveTrack, type TrackBus } from '../../lib/useLiveTrack';
@@ -104,7 +104,7 @@ export function Home() {
   const name = user?.name ?? 'Student';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full bg-gray-50">
       {/* ── Header ── */}
       <div className="relative bg-[#1A3C8F] px-5 pt-10 pb-20 overflow-hidden">
         <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-white/5" />
@@ -121,16 +121,9 @@ export function Home() {
             </div>
             <div>
               <p className="text-white/60" style={{ fontSize: 12 }}>{greeting},</p>
-              <p className="text-white truncate" style={{ fontSize: 17, fontWeight: 700, maxWidth: 200 }}>{name}</p>
+              <p className="text-white truncate" style={{ fontSize: 17, fontWeight: 700, maxWidth: 240 }}>{name}</p>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/notifications')}
-            className="relative w-10 h-10 rounded-full bg-white/15 flex items-center justify-center"
-            aria-label="Notifications"
-          >
-            <Bell className="w-5 h-5 text-white" />
-          </button>
         </div>
 
         {/* Tickets pill — the real stored value, not a cash balance */}

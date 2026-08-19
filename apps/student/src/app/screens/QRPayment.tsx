@@ -85,7 +85,7 @@ export function QRPayment() {
         : `${ticket.rides_remaining} ride${ticket.rides_remaining === 1 ? '' : 's'} left`;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full bg-gray-50">
       <div className="bg-gradient-to-br from-[#1A3C8F] to-[#2d5bb7] px-5 pt-10 pb-8">
         <div className="flex items-center gap-4 mb-4">
           <button onClick={() => navigate(-1)} className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center">

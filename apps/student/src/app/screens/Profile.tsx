@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Mail, Phone, GraduationCap, MapPin, LogOut, Bus } from 'lucide-react';
+import { Mail, Phone, GraduationCap, LogOut, Pencil } from 'lucide-react';
 import { useAuth } from '../../lib/auth';
 
 // The backend stores identity, not campus directory data. Map the email domain
@@ -39,20 +39,28 @@ export function Profile() {
     navigate('/login', { replace: true });
   };
 
+  // Only fields the backend actually holds. Anything with no source is left out
+  // rather than shown as a permanent "—".
   const infoRows = [
     { icon: GraduationCap, label: 'University', value: university },
     { icon: GraduationCap, label: 'Department', value: user.student?.department ?? '—' },
     { icon: Mail, label: 'Email', value: user.email },
-    { icon: Phone, label: 'Phone', value: user.phone ?? '—' },
-    { icon: MapPin, label: 'Hall Address', value: '—' },
-    { icon: Bus, label: 'Bus Route', value: '—' },
+    { icon: Phone, label: 'Phone', value: user.phone ?? 'Not set' },
   ];
 
   return (
     <div className="min-h-full bg-gray-50">
       {/* Header */}
       <div className="bg-[#1A3C8F] px-5 pt-10 pb-8">
-        <h1 className="text-white text-xl font-bold mb-6">Profile</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-white text-xl font-bold">Profile</h1>
+          <button
+            onClick={() => navigate('/profile/edit')}
+            className="flex items-center gap-1.5 bg-white/15 rounded-full px-3.5 py-1.5 text-white text-sm font-semibold active:bg-white/25"
+          >
+            <Pencil className="w-4 h-4" /> Edit
+          </button>
+        </div>
 
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-[#1DB954] flex items-center justify-center shrink-0">
@@ -69,8 +77,8 @@ export function Profile() {
 
         <div className="mt-5 grid grid-cols-3 gap-2">
           {[
-            { label: 'Balance', value: '৳—' },
-            { label: 'Total Trips', value: '—' },
+            { label: 'Department', value: user.student?.department ?? '—' },
+            { label: 'Batch', value: user.student?.batch ?? '—' },
             { label: 'Status', value: user.status === 'active' ? 'Active' : user.status },
           ].map((s) => (
             <div key={s.label} className="bg-white/10 rounded-2xl p-3 text-center">

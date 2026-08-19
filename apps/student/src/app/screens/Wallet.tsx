@@ -79,7 +79,7 @@ export function Wallet() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full bg-gray-50">
       {/* Header */}
       <div className="bg-[#1A3C8F] px-5 pt-10 pb-20 overflow-hidden relative">
         <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-white/5" />

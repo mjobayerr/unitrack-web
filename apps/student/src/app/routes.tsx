@@ -14,6 +14,7 @@ import { Wallet } from "./screens/Wallet";
 import { QRPayment } from "./screens/QRPayment";
 import { TransactionHistory } from "./screens/TransactionHistory";
 import { Profile } from "./screens/Profile";
+import { ProfileEdit } from "./screens/ProfileEdit";
 
 // The dashboard is the app root. RequireAuth is the "middleware": a signed-out
 // visitor to "/" (or any tab under it) is redirected to /login; a signed-in one
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
       { path: "pay", Component: QRPayment },
       { path: "history", Component: TransactionHistory },
       { path: "profile", Component: Profile },
+      { path: "profile/edit", Component: ProfileEdit },
     ],
   },
 ]);
