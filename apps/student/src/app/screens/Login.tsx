@@ -107,6 +107,7 @@ export function Login() {
             <div className="text-right">
               <button
                 type="button"
+                onClick={() => navigate('/forgot-password')}
                 className="text-[#1A3C8F] text-sm hover:underline"
               >
                 Forgot password?

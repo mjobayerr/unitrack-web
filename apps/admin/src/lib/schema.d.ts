@@ -75,6 +75,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/forgot-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Forgot Password
+         * @description Email a password-reset link.
+         *
+         *     Always answers 202, whatever is true of the address — the same enumeration
+         *     defence as `/auth/resend-verification`, and it matters more here because
+         *     this endpoint is reachable by anyone: a person who forgot their password
+         *     cannot log in to prove who they are. "No such account" would turn it into a
+         *     membership oracle for the whole university.
+         *
+         *     Rate limited **per address** — the part nginx's per-IP limit cannot do —
+         *     so the volume any one inbox can be sent is fixed no matter how many IPs ask.
+         *     A throttled request still answers 202; saying "slow down" would confirm the
+         *     address is real.
+         *
+         *     The link is only ever mailed to the address on file, so a stranger asking to
+         *     reset someone else's password just sends that person a link they can ignore.
+         */
+        post: operations["forgot_password_auth_forgot_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Password
+         * @description Consume a reset token and set a new password.
+         *
+         *     The token's signature and `password_reset` type are the whole
+         *     authorization — holding it proves control of the mailbox it was sent to.
+         *
+         *     Single-use: the token's `jti` is denied-listed on success, so a reset link
+         *     that leaks from an inbox or a mail log cannot be replayed to change the
+         *     password again. The check fails **open** on a Redis outage (a rare recovery
+         *     action must not be blocked by a cache blip), which at worst allows a second
+         *     use inside the token's one-hour life — not a token that lives forever.
+         */
+        post: operations["reset_password_auth_reset_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/register/helper": {
         parameters: {
             query?: never;
@@ -678,6 +741,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bus-track": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Bus Current Location
+         * @description Return the most recently cached GPS position for a bus from Redis.
+         */
+        get: operations["get_bus_current_location_bus_track_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/fleet/buses": {
         parameters: {
             query?: never;
@@ -1013,6 +1096,30 @@ export interface paths {
          *     the names, because "4 min" is useless without knowing which route it is on.
          */
         get: operations["stop_arrivals_track_stops__stop_id__arrivals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/track/bus/{bus_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Bus History Path
+         * @description Get complete GPS path (history) for a bus within time range.
+         *
+         *     Example:
+         *     GET /track/bus/550e8400.../history
+         *         ?from_timestamp=2026-07-21T08:00:00Z&to_timestamp=2026-07-21T18:00:00Z
+         */
+        get: operations["get_bus_history_path_track_bus__bus_id__history_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1453,10 +1560,48 @@ export interface components {
             /** @default active */
             status: components["schemas"]["BusStatus"];
         };
+        /**
+         * BusHistoryPathOut
+         * @description Response model for bus history path endpoint.
+         */
+        BusHistoryPathOut: {
+            /**
+             * Bus Id
+             * Format: uuid
+             */
+            bus_id: string;
+            /** Trip Id */
+            trip_id?: string | null;
+            /**
+             * From Timestamp
+             * Format: date-time
+             */
+            from_timestamp: string;
+            /**
+             * To Timestamp
+             * Format: date-time
+             */
+            to_timestamp: string;
+            /** Point Count */
+            point_count: number;
+            /** Path */
+            path: components["schemas"]["GpsPoint"][];
+        };
         /** BusListCreate */
         BusListCreate: {
             /** Buses */
             buses: components["schemas"]["BusCreate"][];
+        };
+        /** BusLocationOut */
+        BusLocationOut: {
+            /** Bus Id */
+            bus_id: string;
+            /** Lat */
+            lat?: string | null;
+            /** Lng */
+            lng?: string | null;
+            /** Ts */
+            ts?: string | null;
         };
         /** BusOut */
         BusOut: {
@@ -1596,6 +1741,20 @@ export interface components {
             /** Buses */
             buses: components["schemas"]["FleetBusOut"][];
         };
+        /**
+         * ForgotPassword
+         * @description Ask for a password-reset link.
+         *
+         *     Only an address, because the caller has by definition lost the credential
+         *     that would authenticate anything more.
+         */
+        ForgotPassword: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
         /** GpsAccepted */
         GpsAccepted: {
             /** Accepted */
@@ -1631,6 +1790,27 @@ export interface components {
          * @enum {string}
          */
         GpsFreshness: "live" | "stale" | "lost";
+        /**
+         * GpsPoint
+         * @description Single GPS coordinate with timestamp and metadata.
+         */
+        GpsPoint: {
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp: string;
+            /** Latitude */
+            latitude: number;
+            /** Longitude */
+            longitude: number;
+            /** Speed */
+            speed?: number | null;
+            /** Heading */
+            heading?: number | null;
+            /** Accuracy */
+            accuracy?: number | null;
+        };
         /** GpsPointIn */
         GpsPointIn: {
             /** Lat */
@@ -2029,6 +2209,20 @@ export interface components {
              * Format: email
              */
             email: string;
+        };
+        /**
+         * ResetPassword
+         * @description Set a new password using the token from the emailed link.
+         *
+         *     `token` is the whole authentication — holding it proves control of the
+         *     mailbox. `password` mirrors the registration constraints so the rules a
+         *     student met at signup are the rules they meet here.
+         */
+        ResetPassword: {
+            /** Token */
+            token: string;
+            /** Password */
+            password: string;
         };
         /** RouteCreate */
         RouteCreate: {
@@ -2546,6 +2740,72 @@ export interface operations {
                         [key: string]: string;
                     };
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    forgot_password_auth_forgot_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForgotPassword"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_password_auth_reset_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPassword"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -3755,6 +4015,38 @@ export interface operations {
             };
         };
     };
+    get_bus_current_location_bus_track_get: {
+        parameters: {
+            query: {
+                /** @description Bus identifier to look up */
+                bus_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusLocationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_buses_fleet_buses_get: {
         parameters: {
             query?: {
@@ -4159,6 +4451,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StopArrivalsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_bus_history_path_track_bus__bus_id__history_get: {
+        parameters: {
+            query: {
+                /** @description Start timestamp (ISO 8601) */
+                from_timestamp: string;
+                /** @description End timestamp (ISO 8601) */
+                to_timestamp: string;
+                /** @description Optional trip filter */
+                trip_id?: string | null;
+                /** @description Max points to return */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                bus_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusHistoryPathOut"];
                 };
             };
             /** @description Validation Error */
