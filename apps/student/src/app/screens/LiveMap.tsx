@@ -9,18 +9,10 @@ import { useLiveTrack, type TrackBus } from '../../lib/useLiveTrack';
 type Route = components['schemas']['RouteOut'];
 type RouteDetail = components['schemas']['RouteDetailOut'];
 
-const OSM_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    osm: {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© OpenStreetMap contributors',
-    },
-  },
-  layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
-};
+// Clean, muted base map — OpenFreeMap Positron. Vector, free, no API key, and
+// without the pharmacy / bus-stop / hospital icon clutter of the raw OSM raster
+// style, so the route line, stops and buses read clearly on top of it.
+const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 
 const DHAKA: [number, number] = [90.4074, 23.7806];
 const SHEET_PEEK = 72; // px of the sheet that stays visible when collapsed
@@ -68,6 +60,7 @@ export function LiveMap() {
   const meMarkerRef = useRef<maplibregl.Marker | null>(null);
   const mePosRef = useRef<[number, number] | null>(null);
   const meFramedRef = useRef(false);
+  const frameRef = useRef<() => void>(() => {});
 
   // --- collapsible bottom sheet -------------------------------------------
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -146,11 +139,16 @@ export function LiveMap() {
       duration: 600,
     });
   }
+  // The geolocation watcher is installed once (empty-deps effect) and would
+  // otherwise close over the mount-time frameMap — when no route was selected,
+  // so its first fix reframed to the student alone and dropped the route. Point
+  // it at the latest frameMap through a ref instead.
+  frameRef.current = frameMap;
 
   // Create the map once; draw the route layers; watch the student's location.
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
-    const map = new maplibregl.Map({ container: mapContainer.current, style: OSM_STYLE, center: DHAKA, zoom: 12 });
+    const map = new maplibregl.Map({ container: mapContainer.current, style: MAP_STYLE, center: DHAKA, zoom: 12 });
     // Zoom is a custom control (below) so it aligns with the other buttons;
     // maplibre's own control sits on a different margin and looks off.
     mapRef.current = map;
@@ -196,7 +194,7 @@ export function LiveMap() {
           // Bring the student into view once, alongside the route.
           if (!meFramedRef.current) {
             meFramedRef.current = true;
-            frameMap();
+            frameRef.current();
           }
         },
         () => {},
